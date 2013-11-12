@@ -1,15 +1,11 @@
 #include "Block.h"
 
 Block::Block(unsigned int id, int min_x, int min_y, int min_z,
-            int width, int height, int depth)
+            int width, int height, int depth) : _id(id),
+            _min_x(min_x), _min_y(min_y), _min_z(min_z),
+            _width(width), _height(height), _depth(depth)
 {
-    _id = id;
-    _min_x = min_x;
-    _min_y = min_y;
-    _min_z = min_z;
-    _width = width;
-    _height = height;
-    _depth = depth;
+    
 }
 
 int
@@ -49,7 +45,7 @@ Block::depth()
 }
 
 unsigned int
-Block::getId() const
+Block::getId()
 {
     return _id;
 }

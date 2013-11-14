@@ -1,10 +1,10 @@
+#ifdef JUNK
 #ifndef SLICE_GUARANTOR_H__
 #define SLICE_GUARANTOR_H__
 
 #include <boost/shared_ptr.hpp>
 
 #include <sopnet/slices/SliceExtractor.h>
-
 
 class SliceGuarantor
 {
@@ -25,3 +25,4 @@ private:
 };
 
 #endif //SLICE_GUARANTOR_H__
+#endif

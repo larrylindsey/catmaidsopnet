@@ -45,7 +45,7 @@ Block::depth()
 }
 
 unsigned int
-Block::getId()
+Block::getId() const
 {
     return _id;
 }
@@ -65,5 +65,11 @@ Block::contains(int x, int y, int z)
 {
   return x >= _min_x && (x - _min_x) < _width &&
          y >= _min_y && (y - _min_y) < _height &&
-         z >= _min_z && (z - _min_z) < _depth;
+         contains(z);
+}
+
+bool
+Block::contains(int z)
+{
+	return z >= _min_z && (z - _min_z) < _depth;
 }

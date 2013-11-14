@@ -18,6 +18,7 @@ public:
     unsigned int getId() const;
     int *size();
     bool contains(int x, int y, int z);
+	bool contains(int z);
 
 private:
     int _min_x, _min_y, _min_z;

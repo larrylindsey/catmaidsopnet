@@ -1,9 +1,10 @@
 #ifndef BLOCK_H__
 #define BLOCK_H__
 
+#include <pipeline/Data.h>
 #include <vector>
 
-class Block
+class Block : public pipeline::Data
 {
 public:
     Block(unsigned int id, int min_x, int min_y, int min_z,

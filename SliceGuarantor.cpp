@@ -1,7 +1,8 @@
 #include "SliceGuarantor.h"
 
-#include <sopnet/slices/SliceExtractor.h>
-#include <sopnet/slices/Slice.h>
+#include <imageprocessing/ImageExtractor.h>
+#include <sopnet/sopnet/slices/SliceExtractor.h>
+#include <sopnet/sopnet/slices/Slice.h>
 
 SliceGuarantor::SliceGuarantor() : _stackReader(boost::make_shared<ImageBlockStackReader>())
 {
@@ -20,7 +21,7 @@ SliceGuarantor::guaranteeSlices()
 	int zMin = _block->zMin();
 	std::vector<boost::shared_ptr<ProcessNode> > sliceExtractors;
 	boost::shared_ptr<ProcessNode> sliceImageExtractor = boost::make_shared<ImageExtractor>();
-	sliceImageExtractor->setInput(_stackReader->getOutput().getAssignedOutput());
+	sliceImageExtractor->setInput(_stackReader->getOutput());
 	
 	
 	for (unsigned int i = 0; i < _block->depth(); ++i)

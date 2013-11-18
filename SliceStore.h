@@ -2,6 +2,7 @@
 #define SLICE_STORE_H__
 
 #include <boost/shared_ptr.hpp>
+
 #include <sopnet/sopnet/slices/Slice.h>
 #include <pipeline/all.h>
 
@@ -28,21 +29,23 @@ public:
      * @param slice - the slice to store.
      * @param blocks - the blocks containing the slice.
      */
-    virtual void storeSlice(const boost::shared_ptr<Slice>& slice, std::vector<boost::shared_ptr<Block> > block) = 0;
+    virtual void storeSlice(const boost::shared_ptr<Slice>& slice, std::vector<boost::shared_ptr<Block> > blocks) = 0;
 
     /**
      * Retrieve the slice with the given slice id.
      * @param sliceId - the id for the slice in question
      */
-    virtual boost::shared_ptr<Slice> retrieveSlice(int sliceId) = 0;
+    virtual boost::shared_ptr<Slice> retrieveSlice(unsigned int sliceId) = 0;
 
     /**
      * Retrieve all slices that are at least partially contained in the given block.
      * @param block - the Block for which to retrieve all slices.
      */
-    virtual boost::shared_ptr<Slices> retrieveSlices(const boost::shared_ptr<Block>& block) = 0;
+    virtual boost::shared_ptr<Slices> retrieveSlices(std::vector<boost::shared_ptr<Block> > blocks) = 0;
 	
-	virtual void removeSlice(const boost::shared_ptr<Slice>& slice, const boost::shared_ptr<Block>& block) = 0;
+	virtual void removeSliceFromBlocks(const boost::shared_ptr<Slice>& slice, std::vector<boost::shared_ptr<Block> > block) = 0;
+	
+	virtual void removeSlice(const boost::shared_ptr<Slice>& slice);
 	
 	virtual std::vector<boost::shared_ptr<Block> > getAssociatedBlocks(const boost::shared_ptr<Slice>& slice) = 0;
 
@@ -104,6 +107,7 @@ public:
 	
 private:
 	void updateOutputs();
+	std::vector<boost::shared_ptr<Block> > inputBlocksToVector();
 	
 	pipeline::Input<SliceStore> _store;
 	pipeline::Inputs<Block> _blocks;
@@ -122,11 +126,6 @@ class IdSliceStoreNode : public pipeline::SimpleProcessNode<>
 {
 public:
 	IdSliceStoreNode();
-	
-	/**
-	 * Put the Input Slice in the SliceStore as associated with the Block Inputs.
-	 */
-	void storeSlices();
 	
 	/**
 	 * Remove the Slices from the SliceStore entirely.

@@ -1,7 +1,9 @@
 #include "BlockManager.h"
 
-BlockManager::BlockManager(int stackWidth, int stackHeight, int stackDepth,
-                 int blockWidth, int blockHeight, int blockDepth)
+BlockManager::BlockManager(boost::shared_ptr<Point3<int> > stackSize,
+							boost::shared_ptr<Point3<int> > blockSize ) :
+							_stackSize(stackSize), _blockSize(blockSize)
 {
     
 }
+

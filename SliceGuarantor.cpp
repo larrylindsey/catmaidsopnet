@@ -15,16 +15,16 @@ SliceGuarantor::SliceGuarantor() : _stackReader(boost::make_shared<ImageBlockSta
 	_stackReader->setInput("block", _block);
 }
 
-bool
+void
 SliceGuarantor::guaranteeSlices()
 {
-	int zMin = _block->zMin();
+	int zMin = _block->location()->z;
 	std::vector<boost::shared_ptr<ProcessNode> > sliceExtractors;
 	boost::shared_ptr<ProcessNode> sliceImageExtractor = boost::make_shared<ImageExtractor>();
 	sliceImageExtractor->setInput(_stackReader->getOutput());
 	
 	
-	for (unsigned int i = 0; i < _block->depth(); ++i)
+	for (unsigned int i = 0; i < _block->size()->z; ++i)
 	{
 		unsigned int z = i + zMin;
 		boost::shared_ptr<ProcessNode> sliceExtractor =
@@ -33,7 +33,14 @@ SliceGuarantor::guaranteeSlices()
 		sliceExtractor->setInput("force explanation", _forceExplanation);
 		sliceExtractors.push_back(sliceExtractor);
 	}
-	
-	return false;
 }
 
+void 
+SliceGuarantor::extractSlices()
+{
+}
+
+void 
+SliceGuarantor::dispatchNeighbors(std::vector<boost::shared_ptr<Slice> > slices)
+{
+}

@@ -15,7 +15,7 @@ public:
 
     SliceGuarantor();
 
-    bool guaranteeSlices();
+    void guaranteeSlices();
 
 
 private:
@@ -29,6 +29,10 @@ private:
     
 	std::vector<boost::shared_ptr<ProcessNode> > _sliceExtractors;
 	
+	// Helper functions
+	
+	void extractSlices();
+	void dispatchNeighbors(std::vector<boost::shared_ptr<Slice> > slices);
 };
 
 #endif //SLICE_GUARANTOR_H__

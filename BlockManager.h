@@ -1,32 +1,29 @@
 #ifndef BLOCK_MANAGER_H__
 #define BLOCK_MANAGER_H__
 
-#include "Block.h"
+#include <boost/shared_ptr.hpp>
+
+#include <catmaidsopnet/Block.h>
+#include <catmaidsopnet/Point3.h>
+
+class Block;
 
 class BlockManager
 {
 public:
-    /* I don't like having this many parameters. Maybe a size struct is in order?
-    Like:
-    struct geom_size {
-        int width;
-        int height;
-        int depth;
-    };
-    */
 
     // width - x dimension, height - y dimension, depth - z dimension
-    BlockManager(int stackWidth, int stackHeight, int stackDepth,
-                 int blockWidth, int blockHeight, int blockDepth);
+    BlockManager(boost::shared_ptr<Point3<int> > stackSize,
+                 boost::shared_ptr<Point3<int> > blockSize);
 
-    Block blockAtLocation(int x, int y, int z);
+    virtual boost::shared_ptr<Block> blockAtLocation(int x, int y, int z);
+	virtual boost::shared_ptr<Block> blockAtLocation(const boost::shared_ptr<Point3<int> >& location);
     
-    Block blockAtOffset(Block block, int xOffset, int yOffset, int zOffset);
+    virtual boost::shared_ptr<Block> blockAtOffset(const boost::shared_ptr<Block>& block,
+										   const boost::shared_ptr<Point3<int> >& offset);
     
-    
-private:
-    int _stackWidth, _stackHeight, _stackDepth;
-    int _blockWidth, _blockHeight, _blockDepth;
+protected:
+    boost::shared_ptr<Point3<int> > _stackSize, _blockSize;
 };
 
 #endif //BLOCK_MANAGER_H__

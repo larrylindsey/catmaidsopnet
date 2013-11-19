@@ -9,7 +9,7 @@ BlockSliceStoreNode::BlockSliceStoreNode()
 {
 	registerInput(_store, "store");
 	registerInputs(_blocks, "block");
-	registerInputs(_slicesIn, "slice in");
+	registerInput(_slicesIn, "slice in");
 	registerOutput(_slicesOut, "slices out");
 }
 
@@ -18,26 +18,19 @@ BlockSliceStoreNode::storeSlices()
 {
 	std::vector<boost::shared_ptr<Block> > blocks = inputBlocksToVector();
 	
-	
-	foreach (pipeline::Input<Slice> slice, _slicesIn)
+	for(unsigned int i = 0; i < _slicesIn->size(); ++i)
 	{
-		boost::shared_ptr<Slice> slicePtr = boost::shared_ptr<Slice>(&(*slice));
-		_store->storeSlice(slicePtr, blocks);
+		_store->storeSlice((*_slicesIn)[i], blocks);
 	}
-	
-	_slicesIn.clear();
 }
 
 void
 BlockSliceStoreNode::removeSlices()
 {
-	foreach (pipeline::Input<Slice> slice, _slicesIn)
+	for(unsigned int i = 0; i < _slicesIn->size(); ++i)
 	{
-	boost::shared_ptr<Slice> slicePtr = boost::shared_ptr<Slice>(&(*slice));
-		_store->removeSlice(slicePtr);
+		_store->removeSlice((*_slicesIn)[i]);
 	}
-	
-	_slicesIn.clear();
 }
 
 void
@@ -45,13 +38,10 @@ BlockSliceStoreNode::removeSlicesFromBlocks()
 {
 	std::vector<boost::shared_ptr<Block> > blocks = inputBlocksToVector();
 	
-	foreach (pipeline::Input<Slice> slice, _slicesIn)
+	for(unsigned int i = 0; i < _slicesIn->size(); ++i)
 	{
-		boost::shared_ptr<Slice> slicePtr = boost::shared_ptr<Slice>(&(*slice)); 
-		_store->removeSliceFromBlocks(slicePtr, blocks);
+		_store->removeSliceFromBlocks((*_slicesIn)[i], blocks);
 	}
-	
-	_slicesIn.clear();
 }
 
 std::vector< boost::shared_ptr< Block > >
@@ -72,10 +62,9 @@ BlockSliceStoreNode::inputBlocksToVector()
 {
 	std::vector<boost::shared_ptr<Block> > blockVector;
 
-	foreach (pipeline::Input<Block> block, _blocks)
+	foreach (boost::shared_ptr<Block> block, _blocks)
 	{
-		boost::shared_ptr<Block> blockPtr = boost::shared_ptr<Block>(&(*block));
-		blockVector.push_back(blockPtr);
+		blockVector.push_back(block);
 	}
 	
 	return blockVector;
@@ -83,7 +72,7 @@ BlockSliceStoreNode::inputBlocksToVector()
 
 
 
-/*******************/
+/******************/
 /* Id Slice Store */
 /******************/
 IdSliceStoreNode::IdSliceStoreNode()

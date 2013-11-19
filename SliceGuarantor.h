@@ -4,7 +4,7 @@
 #include <boost/shared_ptr.hpp>
 
 #include <catmaidsopnet/SliceStore.h>
-#include <catmaidsopnet/Block.h>
+#include <sopnet/sopnet/block/Block.h>
 #include <pipeline/all.h>
 #include <imageprocessing/io/ImageBlockStackReader.h>
 #include <imageprocessing/io/ImageBlockFactory.h>

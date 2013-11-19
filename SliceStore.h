@@ -7,7 +7,7 @@
 #include <pipeline/all.h>
 
 #include <sopnet/sopnet/slices/Slices.h>
-#include <catmaidsopnet/Block.h>
+#include <sopnet/sopnet/block/Block.h>
 
 /**
  * Abstract Data class that handles the practicalities of storing and retrieving Slices from a store.
@@ -84,19 +84,17 @@ public:
 	BlockSliceStoreNode();
 	
 	/**
-	 * Put Slice Inputs into the SliceStore, associating them with the Block Inputs,
-	 * then clear Slice Inputs.
+	 * Put Slices into the SliceStore, associating them with the Block Inputs
 	 */
 	void storeSlices();
 	
 	/**
-	 * Remove associations between Slice Inputs and Block Inputs in the SliceStore,
-	 * then clear Slice Inputs.
+	 * Remove associations between Slices and Block Inputs in the SliceStore
 	 */
 	void removeSlicesFromBlocks();
 	
 	/**
-	 * Remove Slice Inputs from the SliceStore entirely
+	 * Remove Slices from the SliceStore entirely
 	 */
 	void removeSlices();
 	
@@ -111,7 +109,7 @@ private:
 	
 	pipeline::Input<SliceStore> _store;
 	pipeline::Inputs<Block> _blocks;
-	pipeline::Inputs<Slice> _slicesIn;
+	pipeline::Input<Slices> _slicesIn;
 	
 	pipeline::Output<Slices> _slicesOut;
 	

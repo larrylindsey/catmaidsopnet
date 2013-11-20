@@ -48,6 +48,12 @@ public:
 	virtual void removeSlice(const boost::shared_ptr<Slice>& slice);
 	
 	virtual std::vector<boost::shared_ptr<Block> > getAssociatedBlocks(const boost::shared_ptr<Slice>& slice) = 0;
+	
+	/**
+	 * setWhole(true) to store Slices as whole, setWhole(false) for incomplete slices that may need
+	 * to be merged with a neighbor.
+	 */
+	virtual void setWhole(bool whole) = 0;
 
 
 };
@@ -110,6 +116,8 @@ private:
 	pipeline::Input<SliceStore> _store;
 	pipeline::Inputs<Block> _blocks;
 	pipeline::Input<Slices> _slicesIn;
+	pipeline::Input<bool> _whole;
+	
 	
 	pipeline::Output<Slices> _slicesOut;
 	

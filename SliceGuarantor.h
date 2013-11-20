@@ -19,8 +19,25 @@ public:
 
 
 private:
+	
+	class SlicesCollector : public pipeline::ProcessNode
+	{
+	public:
+		SlicesCollector();
+		
+		boost::shared_ptr<Slices> getSlices();
+		
+	private:
+		//void updateOutputs();
+		
+		pipeline::Input<Block> _block;
+		pipeline::Inputs<Slices> _multiSlices;
+	};
+	
+	bool isWhole(const boost::shared_ptr<Slice>& slice);
 
 	boost::shared_ptr<ImageBlockStackReader> _stackReader;
+	boost::shared_ptr<BlockSliceStoreNode> _blockSliceStore;
 	
 	pipeline::Input<SliceStore> _sliceStore;
 	pipeline::Input<ImageBlockFactory> _blockFactory;
@@ -28,11 +45,6 @@ private:
 	pipeline::Input<bool> _forceExplanation;
     
 	std::vector<boost::shared_ptr<ProcessNode> > _sliceExtractors;
-	
-	// Helper functions
-	
-	void extractSlices();
-	void dispatchNeighbors(std::vector<boost::shared_ptr<Slice> > slices);
 };
 
 #endif //SLICE_GUARANTOR_H__

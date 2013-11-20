@@ -10,6 +10,7 @@ BlockSliceStoreNode::BlockSliceStoreNode()
 	registerInput(_store, "store");
 	registerInputs(_blocks, "block");
 	registerInput(_slicesIn, "slice in");
+	registerInput(_whole, "whole");
 	registerOutput(_slicesOut, "slices out");
 }
 
@@ -17,6 +18,8 @@ void
 BlockSliceStoreNode::storeSlices()
 {
 	std::vector<boost::shared_ptr<Block> > blocks = inputBlocksToVector();
+	
+	_store->setWhole(*_whole);
 	
 	for(unsigned int i = 0; i < _slicesIn->size(); ++i)
 	{

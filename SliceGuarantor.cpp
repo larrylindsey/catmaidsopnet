@@ -4,6 +4,19 @@
 #include <sopnet/sopnet/slices/SliceExtractor.h>
 #include <sopnet/sopnet/slices/Slice.h>
 
+/*
+ * TODO
+ * Things left to code:
+ * - check if a Slice is whole
+ * - rectify Slice coordinates to Block coordinates
+ * - merge Slices
+ * - SliceGuarantor input class
+ *   * is this a user-generated guarantee or a propogated one?
+ *   * for propogated, which slices need to be whole?
+ * 
+ * Question: do I need to overlap Slice extraction in order to perform the merge correctly?
+ */
+
 SliceGuarantor::SliceGuarantor() :
 	_stackReader(boost::make_shared<ImageBlockStackReader>()),
 	_blockSliceStore(boost::make_shared<BlockSliceStoreNode>())

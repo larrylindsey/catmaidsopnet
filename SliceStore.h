@@ -45,7 +45,7 @@ public:
 	
 	virtual void removeSliceFromBlocks(const boost::shared_ptr<Slice>& slice, std::vector<boost::shared_ptr<Block> > block) = 0;
 	
-	virtual void removeSlice(const boost::shared_ptr<Slice>& slice);
+	virtual void removeSlice(const boost::shared_ptr<Slice>& slice) = 0;
 	
 	virtual std::vector<boost::shared_ptr<Block> > getAssociatedBlocks(const boost::shared_ptr<Slice>& slice) = 0;
 	

@@ -42,19 +42,12 @@ public:
      * @param block - the Block for which to retrieve all slices.
      */
     virtual boost::shared_ptr<Slices> retrieveSlices(std::vector<boost::shared_ptr<Block> > blocks) = 0;
-	
-	virtual void removeSliceFromBlocks(const boost::shared_ptr<Slice>& slice, std::vector<boost::shared_ptr<Block> > block) = 0;
-	
-	virtual void removeSlice(const boost::shared_ptr<Slice>& slice) = 0;
-	
-	virtual std::vector<boost::shared_ptr<Block> > getAssociatedBlocks(const boost::shared_ptr<Slice>& slice) = 0;
-	
-	/**
-	 * setWhole(true) to store Slices as whole, setWhole(false) for incomplete slices that may need
-	 * to be merged with a neighbor.
-	 */
-	virtual void setWhole(bool whole) = 0;
 
+	virtual void removeSliceFromBlocks(const boost::shared_ptr<Slice>& slice, std::vector<boost::shared_ptr<Block> > block) = 0;
+
+	virtual void removeSlice(const boost::shared_ptr<Slice>& slice) = 0;
+
+	virtual std::vector<boost::shared_ptr<Block> > getAssociatedBlocks(const boost::shared_ptr<Slice>& slice) = 0;
 
 };
 
@@ -112,15 +105,12 @@ public:
 private:
 	void updateOutputs();
 	std::vector<boost::shared_ptr<Block> > inputBlocksToVector();
-	
+
 	pipeline::Input<SliceStore> _store;
 	pipeline::Inputs<Block> _blocks;
 	pipeline::Input<Slices> _slicesIn;
-	pipeline::Input<bool> _whole;
-	
-	
+
 	pipeline::Output<Slices> _slicesOut;
-	
 };
 
 /**

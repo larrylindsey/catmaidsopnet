@@ -34,8 +34,8 @@ private:
 		pipeline::Inputs<Slices> _multiSlices;
 	};
 	
-	bool isWhole(const boost::shared_ptr<Slice>& slice);
-
+	void checkWhole(const boost::shared_ptr<Slice>& slice) const;
+	
 	boost::shared_ptr<ImageBlockStackReader> _stackReader;
 	boost::shared_ptr<BlockSliceStoreNode> _blockSliceStore;
 	

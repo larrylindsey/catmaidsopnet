@@ -43,7 +43,7 @@ SliceGuarantor::guaranteeSlices()
 		int zMin = _block->location()->z;
 		boost::shared_ptr<SlicesCollector> slicesCollector = boost::make_shared<SlicesCollector>();
 		boost::shared_ptr<ProcessNode> sliceImageExtractor = boost::make_shared<ImageExtractor>();
-		boost::shared_ptr<Slices> wholeSlices = boost::make_shared<Slices>();
+		boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
 		boost::shared_ptr<Slices> fragmentSlices = boost::make_shared<Slices>();
 		
 		sliceImageExtractor->setInput(_stackReader->getOutput());
@@ -66,32 +66,22 @@ SliceGuarantor::guaranteeSlices()
 		//Separate Whole slices from fractured slices
 		foreach(boost::shared_ptr<Slice> slice, *(slicesCollector->getSlices()))
 		{
-			if (isWhole(slice))
-			{
-				wholeSlices->add(slice);
-			}
-			else
-			{
-				fragmentSlices->add(slice);
-			}
+			checkWhole(slice);
+			slices->add(slice);
 		}
 		
 		_blockSliceStore->setInput("whole", boost::make_shared<pipeline::Wrap<bool> >(true));
-		_blockSliceStore->setInput("slice in", wholeSlices);
+		_blockSliceStore->setInput("slice in", slices);
 		_blockSliceStore->storeSlices();
-		
-		_blockSliceStore->setInput("whole", boost::make_shared<pipeline::Wrap<bool> >(false));
-		_blockSliceStore->setInput("slice in", fragmentSlices);
-		_blockSliceStore->storeSlices();
-		
 	}
 }
 
-bool
-SliceGuarantor::isWhole(const boost::shared_ptr<Slice>& slice)
+void
+SliceGuarantor::checkWhole(const boost::shared_ptr<Slice>& slice) const
 {
-	return true;
+
 }
+
 
 SliceGuarantor::SlicesCollector::SlicesCollector()
 {

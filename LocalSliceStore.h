@@ -28,13 +28,10 @@ public:
 	void removeSlice(const boost::shared_ptr<Slice>& slice);
 	
 	std::vector<boost::shared_ptr<Block> > getAssociatedBlocks(const boost::shared_ptr<Slice>& slice);
-	
-	void setWhole(bool whole);
 
 private:
 	void removeBlockFromVector(const boost::shared_ptr<Block>& block, std::vector<boost::shared_ptr<Block> > & vector);
-	
-	bool _wholeSlices;
+
 	boost::shared_ptr<SliceBlockMap> _sliceBlockMap;
 	boost::shared_ptr<IdSliceMap> _idSliceMap;
 	boost::shared_ptr<BlockSliceMap> _blockSliceMap;

@@ -4,7 +4,6 @@
 
 LocalSliceStore::LocalSliceStore()
 {
-	_wholeSlices = true;
 	_sliceBlockMap = boost::make_shared<SliceBlockMap>();
 	_idSliceMap = boost::make_shared<IdSliceMap>();
 	_blockSliceMap = boost::make_shared<BlockSliceMap>();
@@ -76,12 +75,6 @@ LocalSliceStore::retrieveSlices(std::vector< boost::shared_ptr< Block > > blocks
 	}
 	
 	return slices;
-}
-
-void
-LocalSliceStore::setWhole(bool whole)
-{
-	_wholeSlices = whole;
 }
 
 void

@@ -1,6 +1,7 @@
 #ifndef SLICE_GUARANTOR_H__
 #define SLICE_GUARANTOR_H__
 
+#include <set>
 #include <boost/shared_ptr.hpp>
 
 #include <catmaidsopnet/SliceStore.h>
@@ -8,6 +9,7 @@
 #include <pipeline/all.h>
 #include <imageprocessing/io/ImageBlockStackReader.h>
 #include <imageprocessing/io/ImageBlockFactory.h>
+#include "SliceGuarantorParameters.h"
 
 class SliceGuarantor : public pipeline::ProcessNode
 {
@@ -34,7 +36,12 @@ private:
 		pipeline::Inputs<Slices> _multiSlices;
 	};
 	
-	void checkWhole(const boost::shared_ptr<Slice>& slice) const;
+	/**
+	 * Helper function that checks whether a Slice can be considered whole or
+	 * not, setting its wholeness flag apropriately. Also checks whether the
+	 * Block that contains its potential neighbors 
+	 */
+	void checkWhole(const boost::shared_ptr<Slice>& slice, std::set<boost::shared_ptr<Block> >& blocksToSubmit) const;
 	
 	boost::shared_ptr<ImageBlockStackReader> _stackReader;
 	boost::shared_ptr<BlockSliceStoreNode> _blockSliceStore;
@@ -43,6 +50,7 @@ private:
 	pipeline::Input<ImageBlockFactory> _blockFactory;
 	pipeline::Input<Block> _block;
 	pipeline::Input<bool> _forceExplanation;
+	pipeline::Input<SliceGuarantorParameters> _parameters;
     
 	std::vector<boost::shared_ptr<ProcessNode> > _sliceExtractors;
 };

@@ -15,8 +15,6 @@
 class SliceStore : public pipeline::Data
 {
 public:
-    SliceStore();
-
     /**
      * Store a slice with a single block reference
      * @param slice - the slice to store.

@@ -2,8 +2,11 @@
 #include <boost/make_shared.hpp>
 #include <set>
 
+#include <util/Logger.h>
+logger::LogChannel localslicestorelog("localslicestorelog", "[LocalSliceStore] ");
+
 LocalSliceStore::LocalSliceStore()
-{
+{	
 	_sliceBlockMap = boost::make_shared<SliceBlockMap>();
 	_idSliceMap = boost::make_shared<IdSliceMap>();
 	_blockSliceMap = boost::make_shared<BlockSliceMap>();
@@ -78,17 +81,24 @@ LocalSliceStore::retrieveSlices(std::vector< boost::shared_ptr< Block > > blocks
 }
 
 void
-LocalSliceStore::storeSlice(const boost::shared_ptr< Slice >& slice, const boost::shared_ptr< Block >& block)
-{
+LocalSliceStore::storeSlice(const boost::shared_ptr< Slice >& slice,
+							const boost::shared_ptr< Block >& block)
+{	
 	boost::shared_ptr<Slices> slices;
+	LOG_DEBUG(localslicestorelog) << "Storing slice with id " << slice->getId() << std::endl;
+	
 	(*_idSliceMap)[slice->getId()] = slice;
 	
 	if (_blockSliceMap->count(*block))
 	{
+		LOG_DEBUG(localslicestorelog) << "BlockSliceMap already contains block " <<
+			block->getId() << std::endl;
 		slices = (*_blockSliceMap)[*block];
 	}
 	else
 	{
+		LOG_DEBUG(localslicestorelog) << "BlockSliceMap does not contain block " <<
+			block->getId() << ". Adding it" << std::endl;
 		slices = boost::make_shared<Slices>();
 		(*_blockSliceMap)[*block] = slices;
 	}
@@ -97,6 +107,8 @@ LocalSliceStore::storeSlice(const boost::shared_ptr< Slice >& slice, const boost
 	{
 		if (cSlice->getId() == slice->getId())
 		{
+			LOG_DEBUG(localslicestorelog) << "BlockSliceMap already links Block " <<
+				block->getId() << " to slice " << slice->getId() << std::endl;
 			return;
 		}
 	}

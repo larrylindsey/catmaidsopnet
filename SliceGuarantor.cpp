@@ -4,6 +4,7 @@
 #include <sopnet/sopnet/slices/SliceExtractor.h>
 #include <sopnet/sopnet/slices/Slice.h>
 #include <util/rect.hpp>
+#include <util/Logger.h>
 
 /*
  * TODO
@@ -18,20 +19,45 @@
  * Question: do I need to overlap Slice extraction in order to perform the merge correctly?
  */
 
-SliceGuarantor::SliceGuarantor() :
-	_stackReader(boost::make_shared<ImageBlockStackReader>()),
-	_blockSliceStore(boost::make_shared<BlockSliceStoreNode>())
+logger::LogChannel sliceguarantorlog("sliceguarantorlog", "[SliceGuarantor] ");
+
+SliceGuarantor::SliceGuarantor()
 {
+	LOG_DEBUG(sliceguarantorlog) << "Registering inputs on this" << std::endl;
+	
+	_stackReader = boost::make_shared<ImageBlockStackReader>();
+	_blockSliceStore = boost::make_shared<BlockSliceStoreNode>();
+	
 	registerInput(_block, "block");
 	registerInput(_sliceStore, "store");
 	registerInput(_blockFactory, "block factory");
 	registerInput(_forceExplanation, "force explanation");
 	registerInput(_parameters, "parameters");
 	
-	_stackReader->setInput("factory", _blockFactory);
+	_block.registerBackwardCallback(&SliceGuarantor::onBlockSet, this);
+	_sliceStore.registerBackwardCallback(&SliceGuarantor::onSliceStoreSet, this);
+	_blockFactory.registerBackwardCallback(&SliceGuarantor::onImageBlockFactorySet, this);
+}
+
+void
+SliceGuarantor::onBlockSet(const pipeline::Modified&)
+{
+	LOG_DEBUG(sliceguarantorlog) << "Setting block inputs on inner ProcessNodes" << std::endl;	
 	_stackReader->setInput("block", _block);
-	
 	_blockSliceStore->addInput("block", _block);
+}
+
+void
+SliceGuarantor::onImageBlockFactorySet(const pipeline::Modified&)
+{
+	LOG_DEBUG(sliceguarantorlog) << "Registering imageblockfactory input on the stack reader" << std::endl;
+	_stackReader->setInput("factory", _blockFactory);
+}
+
+void
+SliceGuarantor::onSliceStoreSet(const pipeline::Modified&)
+{
+	LOG_DEBUG(sliceguarantorlog) << "Registering SliceStore input on BlockSliceStoreNode" << std::endl;	
 	_blockSliceStore->setInput("store", _sliceStore);
 }
 
@@ -40,29 +66,44 @@ SliceGuarantor::guaranteeSlices()
 {
 	if (!_block->setSlicesFlag(true))
 	{
+		LOG_DEBUG(sliceguarantorlog) << "The given block has not yet had slices extracted" << std::endl;
+		LOG_DEBUG(sliceguarantorlog) << "Init'ing local variables" << std::endl;
 		int zMin = _block->location()->z;
 		boost::shared_ptr<SlicesCollector> slicesCollector = boost::make_shared<SlicesCollector>();
-		boost::shared_ptr<ProcessNode> sliceImageExtractor = boost::make_shared<ImageExtractor>();
+		boost::shared_ptr<ImageExtractor> sliceImageExtractor = boost::make_shared<ImageExtractor>();
 		boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
 		std::set<boost::shared_ptr<Block> > submitBlocks;
 		
-		sliceImageExtractor->setInput(_stackReader->getOutput());
-
-		slicesCollector->setInput("block", _block);
+		LOG_DEBUG(sliceguarantorlog) << "Set ImageExtractor Stack Input" << std::endl;
 		
+		sliceImageExtractor->setInput("stack", _stackReader->getOutput());
+
+		LOG_DEBUG(sliceguarantorlog) << "Set SlicesCollector Block Input" << std::endl;
+		
+		slicesCollector->setInput("block", _block);
+
+		LOG_DEBUG(sliceguarantorlog) << "Setting up a SliceCollector" << std::endl;
 		// Collect all Slice's
 		for (unsigned int i = 0; i < _block->size()->z; ++i)
 		{
 			unsigned int z = i + zMin;
 			boost::shared_ptr<ProcessNode> sliceExtractor =
 				boost::make_shared<SliceExtractor<unsigned char> >(z);
+
+			LOG_DEBUG(sliceguarantorlog) << "Setting up a SliceExtractor for i " << i
+				<< ", z " << z << std::endl;
+
+			LOG_DEBUG(sliceguarantorlog) << "Setting membrane input" << std::endl;
+			sliceExtractor->setInput("membrane", sliceImageExtractor->getOutput(i));
 			
-			sliceExtractor->setInput("membrane", sliceImageExtractor->getInput(i));
+			LOG_DEBUG(sliceguarantorlog) << "Setting explanation input" << std::endl;
 			sliceExtractor->setInput("force explanation", _forceExplanation);
-			
+
+			LOG_DEBUG(sliceguarantorlog) << "Pushing output as input to SlicesCollector" << std::endl;
 			slicesCollector->addInput("slices", sliceExtractor->getOutput("slices"));
 		}
 		
+		LOG_DEBUG(sliceguarantorlog) << "Checking slice wholeness" << std::endl;
 		//Separate Whole slices from fractured slices
 		foreach(boost::shared_ptr<Slice> slice, *(slicesCollector->getSlices()))
 		{
@@ -70,8 +111,12 @@ SliceGuarantor::guaranteeSlices()
 			slices->add(slice);
 		}
 		
-		_blockSliceStore->setInput("whole", boost::make_shared<pipeline::Wrap<bool> >(true));
+		//_blockSliceStore->setInput("whole", boost::make_shared<pipeline::Wrap<bool> >(true));
+		LOG_DEBUG(sliceguarantorlog) << "Setting slice input on SliceStore" << std::endl;
+		
 		_blockSliceStore->setInput("slice in", slices);
+		
+		LOG_DEBUG(sliceguarantorlog) << "Storing slices" << std::endl;
 		_blockSliceStore->storeSlices();
 	}
 }
@@ -150,3 +195,5 @@ SliceGuarantor::SlicesCollector::getSlices()
 	}
 	return slices;
 }
+
+

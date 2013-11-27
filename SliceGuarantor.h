@@ -36,6 +36,12 @@ private:
 		pipeline::Inputs<Slices> _multiSlices;
 	};
 	
+	void onBlockSet(const pipeline::Modified&);
+	
+	void onSliceStoreSet(const pipeline::Modified&);
+	
+	void onImageBlockFactorySet(const pipeline::Modified&);
+	
 	/**
 	 * Helper function that checks whether a Slice can be considered whole or
 	 * not, setting its wholeness flag apropriately. Also checks whether the

@@ -5,6 +5,7 @@
 #include <sopnet/sopnet/slices/Slice.h>
 #include <util/rect.hpp>
 #include <util/Logger.h>
+#include <pipeline/Value.h>
 
 /*
  * TODO
@@ -33,6 +34,7 @@ SliceGuarantor::SliceGuarantor()
 	registerInput(_blockFactory, "block factory");
 	registerInput(_forceExplanation, "force explanation");
 	registerInput(_parameters, "parameters");
+	registerInput(_mserParameters, "mser parameters");
 	
 	_block.registerBackwardCallback(&SliceGuarantor::onBlockSet, this);
 	_sliceStore.registerBackwardCallback(&SliceGuarantor::onSliceStoreSet, this);
@@ -68,8 +70,9 @@ SliceGuarantor::guaranteeSlices()
 	{
 		LOG_DEBUG(sliceguarantorlog) << "The given block has not yet had slices extracted" << std::endl;
 		LOG_DEBUG(sliceguarantorlog) << "Init'ing local variables" << std::endl;
+		
 		int zMin = _block->location()->z;
-		boost::shared_ptr<SlicesCollector> slicesCollector = boost::make_shared<SlicesCollector>();
+		int wholeCount = 0;
 		boost::shared_ptr<ImageExtractor> sliceImageExtractor = boost::make_shared<ImageExtractor>();
 		boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
 		std::set<boost::shared_ptr<Block> > submitBlocks;
@@ -78,17 +81,13 @@ SliceGuarantor::guaranteeSlices()
 		
 		sliceImageExtractor->setInput("stack", _stackReader->getOutput());
 
-		LOG_DEBUG(sliceguarantorlog) << "Set SlicesCollector Block Input" << std::endl;
-		
-		slicesCollector->setInput("block", _block);
-
-		LOG_DEBUG(sliceguarantorlog) << "Setting up a SliceCollector" << std::endl;
 		// Collect all Slice's
 		for (unsigned int i = 0; i < _block->size()->z; ++i)
 		{
 			unsigned int z = i + zMin;
 			boost::shared_ptr<ProcessNode> sliceExtractor =
-				boost::make_shared<SliceExtractor<unsigned char> >(z);
+				boost::make_shared<SliceExtractor<unsigned char> >(i);
+			pipeline::Value<Slices> valueSlices;
 
 			LOG_DEBUG(sliceguarantorlog) << "Setting up a SliceExtractor for i " << i
 				<< ", z " << z << std::endl;
@@ -99,24 +98,36 @@ SliceGuarantor::guaranteeSlices()
 			LOG_DEBUG(sliceguarantorlog) << "Setting explanation input" << std::endl;
 			sliceExtractor->setInput("force explanation", _forceExplanation);
 
-			LOG_DEBUG(sliceguarantorlog) << "Pushing output as input to SlicesCollector" << std::endl;
-			slicesCollector->addInput("slices", sliceExtractor->getOutput("slices"));
+			if (_mserParameters)
+			{
+				LOG_DEBUG(sliceguarantorlog) << "Setting MSER Parameters" << std::endl;
+				sliceExtractor->setInput("mser parameters", _mserParameters);
+			}
+			
+			LOG_DEBUG(sliceguarantorlog) << "Collecting output" << std::endl;
+			valueSlices = sliceExtractor->getOutput("slices");
+			slices->addAll(*valueSlices);
+			
+			LOG_DEBUG(sliceguarantorlog) << "Checking slice wholeness" << std::endl;
+			foreach(boost::shared_ptr<Slice> slice, *valueSlices)
+			{
+				checkWhole(slice, submitBlocks);
+				if (slice->isWhole())
+				{
+					++wholeCount;
+				}
+			}
 		}
 		
-		LOG_DEBUG(sliceguarantorlog) << "Checking slice wholeness" << std::endl;
-		//Separate Whole slices from fractured slices
-		foreach(boost::shared_ptr<Slice> slice, *(slicesCollector->getSlices()))
-		{
-			checkWhole(slice, submitBlocks);
-			slices->add(slice);
-		}
+		
 		
 		//_blockSliceStore->setInput("whole", boost::make_shared<pipeline::Wrap<bool> >(true));
 		LOG_DEBUG(sliceguarantorlog) << "Setting slice input on SliceStore" << std::endl;
 		
 		_blockSliceStore->setInput("slice in", slices);
 		
-		LOG_DEBUG(sliceguarantorlog) << "Storing slices" << std::endl;
+		LOG_DEBUG(sliceguarantorlog) << "Storing " << slices->size() << " slices, " << wholeCount
+			<< " of which are whole." << std::endl;
 		_blockSliceStore->storeSlices();
 	}
 }
@@ -177,23 +188,3 @@ SliceGuarantor::checkWhole(const boost::shared_ptr<Slice>& slice,
 		slice->setWhole(true);
 	}
 }
-
-
-SliceGuarantor::SlicesCollector::SlicesCollector()
-{
-	registerInput(_block, "block");
-	registerInputs(_multiSlices, "slices");
-}
-
-boost::shared_ptr<Slices>
-SliceGuarantor::SlicesCollector::getSlices()
-{
-	boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
-	foreach (boost::shared_ptr<Slices> zSlices, _multiSlices)
-	{
-		slices->addAll(*zSlices);
-	}
-	return slices;
-}
-
-

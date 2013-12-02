@@ -9,6 +9,7 @@
 #include <pipeline/all.h>
 #include <imageprocessing/io/ImageBlockStackReader.h>
 #include <imageprocessing/io/ImageBlockFactory.h>
+#include <imageprocessing/MserParameters.h>
 #include "SliceGuarantorParameters.h"
 
 class SliceGuarantor : public pipeline::ProcessNode
@@ -21,20 +22,6 @@ public:
 
 
 private:
-	
-	class SlicesCollector : public pipeline::ProcessNode
-	{
-	public:
-		SlicesCollector();
-		
-		boost::shared_ptr<Slices> getSlices();
-		
-	private:
-		//void updateOutputs();
-		
-		pipeline::Input<Block> _block;
-		pipeline::Inputs<Slices> _multiSlices;
-	};
 	
 	void onBlockSet(const pipeline::Modified&);
 	
@@ -52,6 +39,7 @@ private:
 	boost::shared_ptr<ImageBlockStackReader> _stackReader;
 	boost::shared_ptr<BlockSliceStoreNode> _blockSliceStore;
 	
+	pipeline::Input<MserParameters> _mserParameters;
 	pipeline::Input<SliceStore> _sliceStore;
 	pipeline::Input<ImageBlockFactory> _blockFactory;
 	pipeline::Input<Block> _block;

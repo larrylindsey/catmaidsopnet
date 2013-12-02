@@ -1,4 +1,7 @@
 #include "SliceStore.h"
+#include <util/Logger.h>
+logger::LogChannel slicestorelog("slicestorelog", "[SliceStore] ");
+
 
 /*********************/
 /* Block Slice Store */
@@ -16,6 +19,7 @@ BlockSliceStoreNode::BlockSliceStoreNode()
 void
 BlockSliceStoreNode::storeSlices()
 {
+	LOG_DEBUG(slicestorelog) << "Storing " << _slicesIn->size() << " slices" << std::endl;
 	std::vector<boost::shared_ptr<Block> > blocks = inputBlocksToVector();
 	
 	for(unsigned int i = 0; i < _slicesIn->size(); ++i)

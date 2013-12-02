@@ -46,7 +46,7 @@ SliceGuarantor::onBlockSet(const pipeline::Modified&)
 {
 	LOG_DEBUG(sliceguarantorlog) << "Setting block inputs on inner ProcessNodes" << std::endl;	
 	_stackReader->setInput("block", _block);
-	_blockSliceStore->addInput("block", _block);
+	//_blockSliceStore->addInput("block", _block);
 }
 
 void
@@ -59,7 +59,7 @@ SliceGuarantor::onImageBlockFactorySet(const pipeline::Modified&)
 void
 SliceGuarantor::onSliceStoreSet(const pipeline::Modified&)
 {
-	LOG_DEBUG(sliceguarantorlog) << "Registering SliceStore input on BlockSliceStoreNode" << std::endl;	
+	LOG_DEBUG(sliceguarantorlog) << "Registering SliceStore input on BlockSliceStoreNode" << std::endl;
 	_blockSliceStore->setInput("store", _sliceStore);
 }
 
@@ -76,6 +76,9 @@ SliceGuarantor::guaranteeSlices()
 		boost::shared_ptr<ImageExtractor> sliceImageExtractor = boost::make_shared<ImageExtractor>();
 		boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
 		std::set<boost::shared_ptr<Block> > submitBlocks;
+		boost::shared_ptr<Blocks> blocks = boost::make_shared<Blocks>();
+		blocks->push_back(*_block);
+		_blockSliceStore->setInput(blocks);
 		
 		LOG_DEBUG(sliceguarantorlog) << "Set ImageExtractor Stack Input" << std::endl;
 		

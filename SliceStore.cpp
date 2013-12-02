@@ -1,5 +1,6 @@
 #include "SliceStore.h"
 #include <util/Logger.h>
+#include <pipeline/Value.h>
 logger::LogChannel slicestorelog("slicestorelog", "[SliceStore] ");
 
 
@@ -11,7 +12,7 @@ logger::LogChannel slicestorelog("slicestorelog", "[SliceStore] ");
 BlockSliceStoreNode::BlockSliceStoreNode()
 {
 	registerInput(_store, "store");
-	registerInputs(_blocks, "block");
+	registerInput(_blocks, "block");
 	registerInput(_slicesIn, "slice in");
 	registerOutput(_slicesOut, "slices out");
 }
@@ -20,7 +21,7 @@ void
 BlockSliceStoreNode::storeSlices()
 {
 	LOG_DEBUG(slicestorelog) << "Storing " << _slicesIn->size() << " slices" << std::endl;
-	std::vector<boost::shared_ptr<Block> > blocks = inputBlocksToVector();
+	boost::shared_ptr<Blocks> blocks = inputBlocksToVector();
 	
 	for(unsigned int i = 0; i < _slicesIn->size(); ++i)
 	{
@@ -40,7 +41,7 @@ BlockSliceStoreNode::removeSlices()
 void
 BlockSliceStoreNode::removeSlicesFromBlocks()
 {
-	std::vector<boost::shared_ptr<Block> > blocks = inputBlocksToVector();
+	boost::shared_ptr<Blocks> blocks = inputBlocksToVector();
 	
 	for(unsigned int i = 0; i < _slicesIn->size(); ++i)
 	{
@@ -48,7 +49,7 @@ BlockSliceStoreNode::removeSlicesFromBlocks()
 	}
 }
 
-std::vector< boost::shared_ptr< Block > >
+boost::shared_ptr<Blocks>
 BlockSliceStoreNode::getAssociatedBlocks(const boost::shared_ptr< Slice >& slice)
 {
 	return _store->getAssociatedBlocks(slice);
@@ -57,18 +58,22 @@ BlockSliceStoreNode::getAssociatedBlocks(const boost::shared_ptr< Slice >& slice
 void
 BlockSliceStoreNode::updateOutputs()
 {
+	LOG_DEBUG(slicestorelog) << "Retrieving slices" << std::endl;
 	boost::shared_ptr<Slices> slices = _store->retrieveSlices(inputBlocksToVector());
 	*_slicesOut = *slices;
 }
 
-std::vector<boost::shared_ptr<Block> >
+boost::shared_ptr<Blocks>
 BlockSliceStoreNode::inputBlocksToVector()
 {
-	std::vector<boost::shared_ptr<Block> > blockVector;
-
-	foreach (boost::shared_ptr<Block> block, _blocks)
+	//updateInputs();
+	boost::shared_ptr<Blocks> blockVector = boost::make_shared<Blocks>();
+	
+	LOG_DEBUG(slicestorelog) << "I have " << _blocks->size() << " blocks" << std::endl;
+	
+	foreach (pipeline::Value<Block> block, *_blocks)
 	{
-		blockVector.push_back(block);
+		blockVector->push_back(block);
 	}
 	
 	return blockVector;
@@ -97,7 +102,7 @@ IdSliceStoreNode::removeSlices()
 	_sliceId.clear();
 }
 
-std::vector< boost::shared_ptr< Block > >
+boost::shared_ptr<Blocks>
 IdSliceStoreNode::getAssociatedBlocks(const boost::shared_ptr< Slice >& slice)
 {
 	return _store->getAssociatedBlocks(slice);

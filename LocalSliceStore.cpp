@@ -13,7 +13,7 @@ LocalSliceStore::LocalSliceStore()
 }
 
 
-std::vector<boost::shared_ptr<Block> >
+boost::shared_ptr<Blocks>
 LocalSliceStore::getAssociatedBlocks(const boost::shared_ptr< Slice >& slice)
 {
 	if (_sliceBlockMap->count(*slice))
@@ -22,7 +22,7 @@ LocalSliceStore::getAssociatedBlocks(const boost::shared_ptr< Slice >& slice)
 	}
 	else
 	{
-		std::vector<boost::shared_ptr<Block> > empty;
+		boost::shared_ptr<Blocks> empty = boost::make_shared<Blocks>();
 		return empty;
 	}
 }
@@ -30,19 +30,19 @@ LocalSliceStore::getAssociatedBlocks(const boost::shared_ptr< Slice >& slice)
 void
 LocalSliceStore::removeSlice(const boost::shared_ptr< Slice >& slice)
 {
-	std::vector<boost::shared_ptr<Block> > blocks = getAssociatedBlocks(slice);
+	boost::shared_ptr<Blocks> blocks = getAssociatedBlocks(slice);
 	_idSliceMap->erase(slice->getId());
 	_sliceBlockMap->erase(*slice);
-	foreach (boost::shared_ptr<Block> block, blocks)
+	foreach (boost::shared_ptr<Block> block, *blocks)
 	{
 		(*_blockSliceMap)[*block]->remove(slice);
 	}
 }
 
 void
-LocalSliceStore::removeSliceFromBlocks(const boost::shared_ptr< Slice >& slice, std::vector< boost::shared_ptr< Block > > blocks)
+LocalSliceStore::removeSliceFromBlocks(const boost::shared_ptr< Slice >& slice, const boost::shared_ptr<Blocks>& blocks)
 {
-	foreach (boost::shared_ptr<Block> block, blocks)
+	foreach (boost::shared_ptr<Block> block, *blocks)
 	{
 		removeBlockFromVector(block, (*_sliceBlockMap)[*slice]);
 		//(*_sliceBlockMap)[*slice].erase(block);
@@ -57,18 +57,37 @@ LocalSliceStore::retrieveSlice(unsigned int sliceId)
 }
 
 boost::shared_ptr<Slices>
-LocalSliceStore::retrieveSlices(std::vector< boost::shared_ptr< Block > > blocks)
+LocalSliceStore::retrieveSlices(const boost::shared_ptr<Blocks>& blocks)
 {
+	LOG_DEBUG(localslicestorelog) << "Retrieving slices for " << blocks->size() << " blocks." << std::endl;
 	boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
 	std::set<boost::shared_ptr<Slice> > sliceSet;
 	
 	// This will be sloooow.
-	foreach (boost::shared_ptr<Block> block, blocks)
+	foreach (boost::shared_ptr<Block> block, *blocks)
 	{
-		boost::shared_ptr<Slices> slices = (*_blockSliceMap)[*block];
-		foreach (boost::shared_ptr<Slice> slice, *slices)
+		if(block)
 		{
-			sliceSet.insert(slice);
+			LOG_DEBUG(localslicestorelog) << "Non-null block" << std::endl;
+		}
+		else
+		{
+			LOG_DEBUG(localslicestorelog) << "NULL block!" << std::endl;
+		}
+
+		if (_blockSliceMap->count(*block))
+		{
+			boost::shared_ptr<Slices> slices = (*_blockSliceMap)[*block];
+			LOG_DEBUG(localslicestorelog) << "For block with id " << block->getId() << " retrieved "
+				<< slices->size() << " slices." << std::endl;
+			foreach (boost::shared_ptr<Slice> slice, *slices)
+			{
+				sliceSet.insert(slice);
+			}
+		}
+		else
+		{
+			LOG_DEBUG(localslicestorelog) << "No slices associated with " << block->getId() << std::endl;
 		}
 	}
 	
@@ -113,13 +132,25 @@ LocalSliceStore::storeSlice(const boost::shared_ptr< Slice >& slice,
 		}
 	}
 	
+	if (_sliceBlockMap->count(*slice))
+	{
+		(*_sliceBlockMap)[*slice]->push_back(block);
+	}
+	else
+	{
+		boost::shared_ptr<Blocks> blocks = boost::make_shared<Blocks>();
+		blocks->push_back(block);
+		(*_sliceBlockMap)[*slice] = blocks;
+	}
+	
 	slices->add(slice);
 }
 
 void
-LocalSliceStore::storeSlice(const boost::shared_ptr< Slice >& slice, std::vector< boost::shared_ptr< Block > > blocks)
+LocalSliceStore::storeSlice(const boost::shared_ptr< Slice >& slice, const boost::shared_ptr<Blocks>& blocks)
 {
-	foreach(boost::shared_ptr<Block> block, blocks)
+	LOG_DEBUG(localslicestorelog) << "Associating slice with id " << slice->getId() << " with " << blocks->size() << " blocks." << std::endl;
+	foreach(boost::shared_ptr<Block> block, *blocks)
 	{
 		storeSlice(slice, block);
 	}
@@ -127,7 +158,7 @@ LocalSliceStore::storeSlice(const boost::shared_ptr< Slice >& slice, std::vector
 
 
 void
-LocalSliceStore::removeBlockFromVector(const boost::shared_ptr< Block >& block, std::vector< boost::shared_ptr<Block> >& vector)
+LocalSliceStore::removeBlockFromVector(const boost::shared_ptr< Block >& block, const boost::shared_ptr<Blocks>& vector)
 {
-	vector.erase(std::remove(vector.begin(), vector.end(), block), vector.end());
+	vector->erase(std::remove(vector->begin(), vector->end(), block), vector->end());
 }

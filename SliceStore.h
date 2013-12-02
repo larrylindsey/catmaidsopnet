@@ -9,6 +9,8 @@
 #include <sopnet/sopnet/slices/Slices.h>
 #include <sopnet/sopnet/block/Block.h>
 
+typedef std::vector<boost::shared_ptr<Block> > Blocks;
+
 /**
  * Abstract Data class that handles the practicalities of storing and retrieving Slices from a store.
  */
@@ -27,7 +29,7 @@ public:
      * @param slice - the slice to store.
      * @param blocks - the blocks containing the slice.
      */
-    virtual void storeSlice(const boost::shared_ptr<Slice>& slice, std::vector<boost::shared_ptr<Block> > blocks) = 0;
+    virtual void storeSlice(const boost::shared_ptr<Slice>& slice, const boost::shared_ptr<Blocks>& blocks) = 0;
 
     /**
      * Retrieve the slice with the given slice id.
@@ -39,13 +41,13 @@ public:
      * Retrieve all slices that are at least partially contained in the given block.
      * @param block - the Block for which to retrieve all slices.
      */
-    virtual boost::shared_ptr<Slices> retrieveSlices(std::vector<boost::shared_ptr<Block> > blocks) = 0;
+    virtual boost::shared_ptr<Slices> retrieveSlices(const boost::shared_ptr<Blocks>& blocks) = 0;
 
-	virtual void removeSliceFromBlocks(const boost::shared_ptr<Slice>& slice, std::vector<boost::shared_ptr<Block> > block) = 0;
+	virtual void removeSliceFromBlocks(const boost::shared_ptr<Slice>& slice, const boost::shared_ptr<Blocks>& blocks) = 0;
 
 	virtual void removeSlice(const boost::shared_ptr<Slice>& slice) = 0;
 
-	virtual std::vector<boost::shared_ptr<Block> > getAssociatedBlocks(const boost::shared_ptr<Slice>& slice) = 0;
+	virtual boost::shared_ptr<Blocks> getAssociatedBlocks(const boost::shared_ptr<Slice>& slice) = 0;
 
 };
 
@@ -98,14 +100,14 @@ public:
 	/**
 	 * Get a vector containing all Blocks associated with the given Slice.
 	 */
-	std::vector<boost::shared_ptr<Block> > getAssociatedBlocks(const boost::shared_ptr<Slice>& slice);
+	boost::shared_ptr<Blocks> getAssociatedBlocks(const boost::shared_ptr<Slice>& slice);
 	
 private:
 	void updateOutputs();
-	std::vector<boost::shared_ptr<Block> > inputBlocksToVector();
+	boost::shared_ptr<Blocks> inputBlocksToVector();
 
 	pipeline::Input<SliceStore> _store;
-	pipeline::Inputs<Block> _blocks;
+	pipeline::Input<Blocks> _blocks;
 	pipeline::Input<Slices> _slicesIn;
 
 	pipeline::Output<Slices> _slicesOut;
@@ -129,7 +131,7 @@ public:
 	/**
 	 * Get a vector containing all Blocks associated with the given Slice.
 	 */
-	std::vector<boost::shared_ptr<Block> > getAssociatedBlocks(const boost::shared_ptr<Slice>& slice);
+	boost::shared_ptr<Blocks> getAssociatedBlocks(const boost::shared_ptr<Slice>& slice);
 	
 private:
 	void updateOutputs();

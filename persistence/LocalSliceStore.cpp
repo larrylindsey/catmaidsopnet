@@ -8,12 +8,11 @@ logger::LogChannel localslicestorelog("localslicestorelog", "[LocalSliceStore] "
 LocalSliceStore::LocalSliceStore()
 {	
 	_sliceBlockMap = boost::make_shared<SliceBlockMap>();
-	_idSliceMap = boost::make_shared<IdSliceMap>();
 	_blockSliceMap = boost::make_shared<BlockSliceMap>();
 }
 
 
-std::vector<boost::shared_ptr<Block> >
+boost::shared_ptr<Blocks>
 LocalSliceStore::getAssociatedBlocks(const boost::shared_ptr< Slice >& slice)
 {
 	if (_sliceBlockMap->count(*slice))
@@ -22,7 +21,7 @@ LocalSliceStore::getAssociatedBlocks(const boost::shared_ptr< Slice >& slice)
 	}
 	else
 	{
-		std::vector<boost::shared_ptr<Block> > empty;
+		boost::shared_ptr<Blocks> empty = boost::make_shared<Blocks>();
 		return empty;
 	}
 }
@@ -30,82 +29,65 @@ LocalSliceStore::getAssociatedBlocks(const boost::shared_ptr< Slice >& slice)
 void
 LocalSliceStore::removeSlice(const boost::shared_ptr< Slice >& slice)
 {
-	std::vector<boost::shared_ptr<Block> > blocks = getAssociatedBlocks(slice);
-	_idSliceMap->erase(slice->getId());
+	boost::shared_ptr<Blocks> blocks = getAssociatedBlocks(slice);
+	
 	_sliceBlockMap->erase(*slice);
-	foreach (boost::shared_ptr<Block> block, blocks)
+	foreach (boost::shared_ptr<Block> block, *blocks)
 	{
 		(*_blockSliceMap)[*block]->remove(slice);
 	}
 }
 
 void
-LocalSliceStore::removeSliceFromBlocks(const boost::shared_ptr< Slice >& slice, std::vector< boost::shared_ptr< Block > > blocks)
+LocalSliceStore::disassociate(const boost::shared_ptr< Slice >& slice, const boost::shared_ptr<Block>& block)
 {
-	foreach (boost::shared_ptr<Block> block, blocks)
+	if (_sliceBlockMap->count(*slice))
 	{
 		removeBlockFromVector(block, (*_sliceBlockMap)[*slice]);
-		//(*_sliceBlockMap)[*slice].erase(block);
+	}
+	if (_blockSliceMap->count(*block))
+	{
 		(*_blockSliceMap)[*block]->remove(slice);
 	}
-}
-
-boost::shared_ptr<Slice>
-LocalSliceStore::retrieveSlice(unsigned int sliceId)
-{
-	return (*_idSliceMap)[sliceId];
 }
 
 boost::shared_ptr<Slices>
-LocalSliceStore::retrieveSlices(std::vector< boost::shared_ptr< Block > > blocks)
+LocalSliceStore::retrieveSlices(const boost::shared_ptr<Block>& block)
 {
-	boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
-	std::set<boost::shared_ptr<Slice> > sliceSet;
-	
-	// This will be sloooow.
-	foreach (boost::shared_ptr<Block> block, blocks)
-	{
-		boost::shared_ptr<Slices> slices = (*_blockSliceMap)[*block];
-		foreach (boost::shared_ptr<Slice> slice, *slices)
-		{
-			sliceSet.insert(slice);
-		}
-	}
-	
-	foreach (boost::shared_ptr<Slice> slice, sliceSet)
-	{
-		slices->add(slice);
-	}
-	
-	return slices;
-}
-
-void
-LocalSliceStore::storeSlice(const boost::shared_ptr< Slice >& slice,
-							const boost::shared_ptr< Block >& block)
-{	
 	boost::shared_ptr<Slices> slices;
-	LOG_DEBUG(localslicestorelog) << "Storing slice with id " << slice->getId() << std::endl;
-	
-	(*_idSliceMap)[slice->getId()] = slice;
 	
 	if (_blockSliceMap->count(*block))
 	{
-		LOG_DEBUG(localslicestorelog) << "BlockSliceMap already contains block " <<
-			block->getId() << std::endl;
 		slices = (*_blockSliceMap)[*block];
 	}
 	else
 	{
-		LOG_DEBUG(localslicestorelog) << "BlockSliceMap does not contain block " <<
-			block->getId() << ". Adding it" << std::endl;
+		slices = boost::make_shared<Slices>();
+	}
+
+	return slices;
+}
+
+
+void
+LocalSliceStore::mapBlockToSlice(const boost::shared_ptr< Block >& block, const boost::shared_ptr< Slice >& slice)
+{
+	// Place entry in block slice map
+	boost::shared_ptr<Slices> slices;
+	
+	if (_blockSliceMap->count(*block))
+	{
+		slices = (*_blockSliceMap)[*block];
+	}
+	else
+	{
 		slices = boost::make_shared<Slices>();
 		(*_blockSliceMap)[*block] = slices;
 	}
 	
 	foreach (boost::shared_ptr<Slice> cSlice, *slices)
 	{
-		if (cSlice->getId() == slice->getId())
+		if (*cSlice == *slice)
 		{
 			LOG_DEBUG(localslicestorelog) << "BlockSliceMap already links Block " <<
 				block->getId() << " to slice " << slice->getId() << std::endl;
@@ -117,17 +99,52 @@ LocalSliceStore::storeSlice(const boost::shared_ptr< Slice >& slice,
 }
 
 void
-LocalSliceStore::storeSlice(const boost::shared_ptr< Slice >& slice, std::vector< boost::shared_ptr< Block > > blocks)
+LocalSliceStore::mapSliceToBlock(const boost::shared_ptr< Slice >& slice, const boost::shared_ptr< Block >& block)
 {
-	foreach(boost::shared_ptr<Block> block, blocks)
+	// Place entry in slice block map
+	boost::shared_ptr<Blocks> blocks;
+	
+	if (_sliceBlockMap->count(*slice))
 	{
-		storeSlice(slice, block);
+		blocks = (*_sliceBlockMap)[*slice];
 	}
+	else
+	{
+		blocks = boost::make_shared<Blocks>();
+		(*_sliceBlockMap)[*slice] = blocks;
+	}
+	
+	foreach (boost::shared_ptr<Block> cBlock, *blocks)
+	{
+		if (*block == *cBlock)
+		{
+			LOG_DEBUG(localslicestorelog) << "SliceBlockMap already links slice " <<
+				slice->getId() << " to block " << block->getId() << std::endl;
+			return;
+		}
+		
+	}
+	
+	blocks->push_back(block);
+}
+
+
+
+
+void
+LocalSliceStore::associate(const boost::shared_ptr< Slice >& slice,
+							const boost::shared_ptr< Block >& block)
+{
+	LOG_DEBUG(localslicestorelog) << "Got a slice with " << slice->getComponent()->getSize() << " pixels." << std::endl;
+	
+	mapBlockToSlice(block, slice);
+	mapSliceToBlock(slice, block);
+
 }
 
 
 void
-LocalSliceStore::removeBlockFromVector(const boost::shared_ptr< Block >& block, std::vector< boost::shared_ptr<Block> >& vector)
+LocalSliceStore::removeBlockFromVector(const boost::shared_ptr< Block >& block, const boost::shared_ptr<Blocks>& vector)
 {
-	vector.erase(std::remove(vector.begin(), vector.end(), block), vector.end());
+	vector->erase(std::remove(vector->begin(), vector->end(), block), vector->end());
 }

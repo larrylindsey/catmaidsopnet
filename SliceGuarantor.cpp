@@ -3,6 +3,7 @@
 #include <imageprocessing/ImageExtractor.h>
 #include <sopnet/sopnet/slices/SliceExtractor.h>
 #include <sopnet/sopnet/slices/Slice.h>
+#include <catmaidsopnet/persistence/SliceWriter.h>
 #include <util/rect.hpp>
 #include <util/Logger.h>
 #include <pipeline/Value.h>
@@ -26,60 +27,42 @@ SliceGuarantor::SliceGuarantor()
 {
 	LOG_DEBUG(sliceguarantorlog) << "Registering inputs on this" << std::endl;
 	
-	_stackReader = boost::make_shared<ImageBlockStackReader>();
-	_blockSliceStore = boost::make_shared<BlockSliceStoreNode>();
-	
 	registerInput(_block, "block");
 	registerInput(_sliceStore, "store");
 	registerInput(_blockFactory, "block factory");
 	registerInput(_forceExplanation, "force explanation");
 	registerInput(_parameters, "parameters");
-	registerInput(_mserParameters, "mser parameters");
-	
-	_block.registerBackwardCallback(&SliceGuarantor::onBlockSet, this);
-	_sliceStore.registerBackwardCallback(&SliceGuarantor::onSliceStoreSet, this);
-	_blockFactory.registerBackwardCallback(&SliceGuarantor::onImageBlockFactorySet, this);
+	//registerInput(_mserParameters, "mser parameters");
+	registerOutput(_count, "count");
 }
 
 void
-SliceGuarantor::onBlockSet(const pipeline::Modified&)
-{
-	LOG_DEBUG(sliceguarantorlog) << "Setting block inputs on inner ProcessNodes" << std::endl;	
-	_stackReader->setInput("block", _block);
-	_blockSliceStore->addInput("block", _block);
-}
-
-void
-SliceGuarantor::onImageBlockFactorySet(const pipeline::Modified&)
-{
-	LOG_DEBUG(sliceguarantorlog) << "Registering imageblockfactory input on the stack reader" << std::endl;
-	_stackReader->setInput("factory", _blockFactory);
-}
-
-void
-SliceGuarantor::onSliceStoreSet(const pipeline::Modified&)
-{
-	LOG_DEBUG(sliceguarantorlog) << "Registering SliceStore input on BlockSliceStoreNode" << std::endl;	
-	_blockSliceStore->setInput("store", _sliceStore);
-}
-
-void
-SliceGuarantor::guaranteeSlices()
+SliceGuarantor::updateOutputs()
 {
 	if (!_block->setSlicesFlag(true))
 	{
 		LOG_DEBUG(sliceguarantorlog) << "The given block has not yet had slices extracted" << std::endl;
 		LOG_DEBUG(sliceguarantorlog) << "Init'ing local variables" << std::endl;
 		
+		
 		int zMin = _block->location()->z;
 		int wholeCount = 0;
+		pipeline::Value<SliceStoreResult> sliceWriteCount;
 		boost::shared_ptr<ImageExtractor> sliceImageExtractor = boost::make_shared<ImageExtractor>();
+		boost::shared_ptr<ImageBlockStackReader> stackReader = boost::make_shared<ImageBlockStackReader>();
+		boost::shared_ptr<SliceWriter> sliceWriter = boost::make_shared<SliceWriter>();
 		boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
 		std::set<boost::shared_ptr<Block> > submitBlocks;
 		
-		LOG_DEBUG(sliceguarantorlog) << "Set ImageExtractor Stack Input" << std::endl;
+		LOG_DEBUG(sliceguarantorlog) << "Setting up mini pipeline" << std::endl;
 		
-		sliceImageExtractor->setInput("stack", _stackReader->getOutput());
+		stackReader->setInput("block", _block);
+		stackReader->setInput("factory", _blockFactory);
+
+		sliceWriter->setInput("block", _block);
+		sliceWriter->setInput("store", _sliceStore);
+		
+		sliceImageExtractor->setInput("stack", stackReader->getOutput());
 
 		// Collect all Slice's
 		for (unsigned int i = 0; i < _block->size()->z; ++i)
@@ -124,11 +107,13 @@ SliceGuarantor::guaranteeSlices()
 		//_blockSliceStore->setInput("whole", boost::make_shared<pipeline::Wrap<bool> >(true));
 		LOG_DEBUG(sliceguarantorlog) << "Setting slice input on SliceStore" << std::endl;
 		
-		_blockSliceStore->setInput("slice in", slices);
+		sliceWriter->setInput("slices", slices);
 		
 		LOG_DEBUG(sliceguarantorlog) << "Storing " << slices->size() << " slices, " << wholeCount
 			<< " of which are whole." << std::endl;
-		_blockSliceStore->storeSlices();
+		
+		sliceWriteCount = sliceWriter->getOutput();
+		*_count = *sliceWriteCount;
 	}
 }
 

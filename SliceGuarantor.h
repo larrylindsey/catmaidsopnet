@@ -29,8 +29,6 @@ private:
 	 */
 	void checkWhole(const boost::shared_ptr<Slice>& slice, std::set<boost::shared_ptr<Block> >& blocksToSubmit) const;
 	
-	void translateToBlock(const boost::shared_ptr<Slices>& slices);
-	
 	pipeline::Input<MserParameters> _mserParameters;
 	pipeline::Input<SliceStore> _sliceStore;
 	pipeline::Input<ImageBlockFactory> _blockFactory;

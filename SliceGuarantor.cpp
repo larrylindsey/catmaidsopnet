@@ -92,7 +92,10 @@ SliceGuarantor::updateOutputs()
 			slices->addAll(*valueSlices);
 
 			// Slices are extracted in [0 0 w h]. Translate them to Block coordinates.
-			translateToBlock(slices);
+			foreach(boost::shared_ptr<Slice> slice, *valueSlices)
+			{
+				slice->translate(*(_block->location()));
+			}
 			
 			LOG_DEBUG(sliceguarantorlog) << "Checking slice wholeness" << std::endl;
 			foreach(boost::shared_ptr<Slice> slice, *valueSlices)
@@ -119,49 +122,6 @@ SliceGuarantor::updateOutputs()
 		*_count = *sliceWriteCount;
 	}
 }
-
-void
-SliceGuarantor::translateToBlock(const boost::shared_ptr<Slices>& slices)
-{
-	// Assume each Slice is contained entirely within a Block
-	foreach (boost::shared_ptr<Slice> slice, *slices)
-	{
-		// Get the underlying pixel list.
-		boost::shared_ptr<std::vector<util::point<unsigned int> > > pixelList = 
-			slice->getComponent()->getPixelList();
-
-		int sampleX = (*pixelList)[0].x;
-		int sampleY = (*pixelList)[0].y;
-		boost::shared_ptr<util::point<unsigned int> > samplePt = boost::make_shared<util::point<unsigned int> >(sampleX, sampleY);
-		
-		// If the test location is not contained by the block, then we need to translate
-		if (!_block->contains(samplePt))
-		{
-			util::point<unsigned int> size = *(_block->size());
-			util::point<unsigned int> location = *(_block->location());
-			util::point<unsigned int> offset = size * ((location / size) - (*samplePt / size));
-			
-			LOG_DEBUG(sliceguarantorlog) << "Slice not in bounds, translating by " << offset.x << ", " << offset.y << std::endl;
-			
-			foreach (util::point<unsigned int> px, *( slice->getComponent()->getPixelList()) )
-			{
-				px = px + offset;
-			}
-		}
-		
-		/*
-		Since we have translated the underlying pixel list, which may be shared among Slices, we
-		need to check that the slice pixels are contained in its bounding box. If not, recompute the
-		box.
-		*/
-		util::point<unsigned int> testPoint = *(slice->getComponent()->getPixels().first);
-		if (! slice->getComponent()->getBoundingBox().contains(testPoint))
-		{
-			slice->getComponent()->recomputeBoundingBox();
-		}
-	}
-}
-
 
 void
 SliceGuarantor::checkWhole(const boost::shared_ptr<Slice>& slice,

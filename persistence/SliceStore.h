@@ -8,8 +8,7 @@
 
 #include <sopnet/sopnet/slices/Slices.h>
 #include <sopnet/sopnet/block/Block.h>
-
-typedef std::vector<boost::shared_ptr<Block> > Blocks;
+#include <sopnet/sopnet/block/Blocks.h>
 
 class SliceStoreResult : public pipeline::Data
 {

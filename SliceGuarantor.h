@@ -6,6 +6,7 @@
 
 #include <catmaidsopnet/persistence/SliceStore.h>
 #include <sopnet/sopnet/block/Block.h>
+#include <sopnet/sopnet/block/Blocks.h>
 #include <pipeline/all.h>
 #include <imageprocessing/io/ImageBlockStackReader.h>
 #include <imageprocessing/io/ImageBlockFactory.h>
@@ -27,7 +28,7 @@ private:
 	 * not, setting its wholeness flag apropriately. Also checks whether the
 	 * Block that contains its potential neighbors 
 	 */
-	void checkWhole(const boost::shared_ptr<Slice>& slice, std::set<boost::shared_ptr<Block> >& blocksToSubmit) const;
+	void checkWhole(const boost::shared_ptr<Slice>& slice, const boost::shared_ptr<Blocks>& blocksToSubmit) const;
 	
 	pipeline::Input<MserParameters> _mserParameters;
 	pipeline::Input<SliceStore> _sliceStore;
@@ -36,6 +37,7 @@ private:
 	pipeline::Input<bool> _forceExplanation;
 	pipeline::Input<SliceGuarantorParameters> _parameters;
 	
+	pipeline::Output<Blocks> _neighborBlocks;
 	pipeline::Output<SliceStoreResult> _count;
 };
 

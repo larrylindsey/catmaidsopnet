@@ -43,7 +43,7 @@ LocalSliceStore::disassociate(const boost::shared_ptr< Slice >& slice, const boo
 {
 	if (_sliceBlockMap->count(*slice))
 	{
-		removeBlockFromVector(block, (*_sliceBlockMap)[*slice]);
+		(*_sliceBlockMap)[*slice]->remove(block);
 	}
 	if (_blockSliceMap->count(*block))
 	{
@@ -125,7 +125,7 @@ LocalSliceStore::mapSliceToBlock(const boost::shared_ptr< Slice >& slice, const 
 		
 	}
 	
-	blocks->push_back(block);
+	blocks->add(block);
 }
 
 
@@ -135,16 +135,9 @@ void
 LocalSliceStore::associate(const boost::shared_ptr< Slice >& slice,
 							const boost::shared_ptr< Block >& block)
 {
-	LOG_DEBUG(localslicestorelog) << "Got a slice with " << slice->getComponent()->getSize() << " pixels." << std::endl;
+	LOG_ALL(localslicestorelog) << "Got a slice with " << slice->getComponent()->getSize() << " pixels." << std::endl;
 	
 	mapBlockToSlice(block, slice);
 	mapSliceToBlock(slice, block);
 
-}
-
-
-void
-LocalSliceStore::removeBlockFromVector(const boost::shared_ptr< Block >& block, const boost::shared_ptr<Blocks>& vector)
-{
-	vector->erase(std::remove(vector->begin(), vector->end(), block), vector->end());
 }

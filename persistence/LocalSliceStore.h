@@ -26,8 +26,6 @@ public:
 
 
 private:
-	void removeBlockFromVector(const boost::shared_ptr<Block>& block, const boost::shared_ptr<Blocks>& vector);
-
 	void mapSliceToBlock(const boost::shared_ptr<Slice>& slice, const boost::shared_ptr<Block>& block);
 	void mapBlockToSlice(const boost::shared_ptr<Block>& block, const boost::shared_ptr<Slice>& slice);
 	

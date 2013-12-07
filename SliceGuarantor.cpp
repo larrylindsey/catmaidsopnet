@@ -47,7 +47,7 @@ SliceGuarantor::updateOutputs()
 		
 		bool guaranteed = false;
 		
-		int wholeCount = 0;
+		int wholeCount = 0, extractArea;
 		
 		boost::shared_ptr<Block> inputBlock = _block;
 		
@@ -60,6 +60,9 @@ SliceGuarantor::updateOutputs()
 		
 		
 		extractBlocks->dilateXY();
+		extractArea = extractBlocks->size().x * extractBlocks->size().y;
+		
+		LOG_DEBUG(sliceguarantorlog) << "Extract area " << extractArea << ". Maximum area " << *_maximumArea << std::endl;
 		
 		while (!guaranteed && extractBlocks->size().x * extractBlocks->size().y < *_maximumArea)
 		{
@@ -81,6 +84,8 @@ SliceGuarantor::updateOutputs()
 		LOG_DEBUG(sliceguarantorlog) << "Setting slice input on SliceStore" << std::endl;
 		
 		sliceWriter->setInput("slices", slices);
+		sliceWriter->setInput("block", _block);
+		sliceWriter->setInput("store", _sliceStore);
 		
 		LOG_DEBUG(sliceguarantorlog) << "Storing " << slices->size() << " slices, " << wholeCount
 			<< " of which are whole." << std::endl;
@@ -167,7 +172,10 @@ SliceGuarantor::guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
 		checkWhole(slice, extractBlocks, nbdBlocks);
 	}
 	
-	if (nbdBlocks->size().x > extractBlocks->size.x || nbdBlocks->size().y > extractBlocks->size().y)
+	util::point3<unsigned int> nbdSize = nbdBlocks->size();
+	util::point3<unsigned int> extractSize = extractBlocks->size();
+	
+	if (nbdSize.x > extractSize.x && nbdSize.y > extractSize.y)
 	{
 		extractBlocks->addAll(nbdBlocks->getBlocks());
 		return false;

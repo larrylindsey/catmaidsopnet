@@ -23,18 +23,24 @@ private:
 	
 	void updateOutputs();
 	
+	bool guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
+						 const boost::shared_ptr<Slices>& slices);
+	
 	/**
 	 * Helper function that checks whether a Slice can be considered whole or
 	 * not, setting its wholeness flag apropriately. Also checks whether the
 	 * Block that contains its potential neighbors 
 	 */
-	void checkWhole(const boost::shared_ptr<Slice>& slice, const boost::shared_ptr<Blocks>& blocksToSubmit) const;
+	void checkWhole(const boost::shared_ptr<Slice>& slice,
+					const boost::shared_ptr<Blocks>& extractBlocks,
+					const boost::shared_ptr<Blocks>& nbdBlocks) const;
 	
 	pipeline::Input<MserParameters> _mserParameters;
 	pipeline::Input<SliceStore> _sliceStore;
 	pipeline::Input<ImageBlockFactory> _blockFactory;
 	pipeline::Input<Block> _block;
 	pipeline::Input<bool> _forceExplanation;
+	pipeline::Input<unsigned int> _maximumArea;
 	pipeline::Input<SliceGuarantorParameters> _parameters;
 	
 	pipeline::Output<Blocks> _neighborBlocks;

@@ -5,13 +5,15 @@
 #include <boost/shared_ptr.hpp>
 
 #include <catmaidsopnet/persistence/SliceStore.h>
-#include <sopnet/sopnet/block/Block.h>
+#include <sopnet/sopnet/block/Box.h>
 #include <sopnet/sopnet/block/Blocks.h>
 #include <pipeline/all.h>
 #include <imageprocessing/io/ImageBlockStackReader.h>
 #include <imageprocessing/io/ImageBlockFactory.h>
 #include <imageprocessing/MserParameters.h>
 #include "SliceGuarantorParameters.h"
+
+typedef Box<unsigned int> UBox;
 
 class SliceGuarantor : public pipeline::SimpleProcessNode<>
 {
@@ -24,6 +26,7 @@ private:
 	void updateOutputs();
 	
 	bool guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
+						 const boost::shared_ptr<Blocks>& guaranteeBlocks,
 						 const boost::shared_ptr<Slices>& slices);
 	
 	/**
@@ -38,10 +41,11 @@ private:
 	pipeline::Input<MserParameters> _mserParameters;
 	pipeline::Input<SliceStore> _sliceStore;
 	pipeline::Input<ImageBlockFactory> _blockFactory;
-	pipeline::Input<Block> _block;
+	pipeline::Input<UBox> _box;
 	pipeline::Input<bool> _forceExplanation;
 	pipeline::Input<unsigned int> _maximumArea;
 	pipeline::Input<SliceGuarantorParameters> _parameters;
+	pipeline::Input<BlockManager> _blockManager;
 	
 	pipeline::Output<Blocks> _neighborBlocks;
 	pipeline::Output<SliceStoreResult> _count;

@@ -26,83 +26,115 @@ logger::LogChannel sliceguarantorlog("sliceguarantorlog", "[SliceGuarantor] ");
 SliceGuarantor::SliceGuarantor()
 {
 	LOG_DEBUG(sliceguarantorlog) << "Registering inputs on this" << std::endl;
-	registerInput(_block, "block");
-	registerInput(_sliceStore, "store");
+	registerInput(_box, "box");
+	registerInput(_blockManager, "block manager");
+	registerInput(_sliceStore, "store");	
 	registerInput(_blockFactory, "block factory");
 	registerInput(_forceExplanation, "force explanation");
 	registerInput(_parameters, "parameters");
 	registerInput(_maximumArea, "maximum area");
 	//registerInput(_mserParameters, "mser parameters");
-	registerOutput(_neighborBlocks, "neighbor blocks");
+	//registerOutput(_neighborBlocks, "neighbor blocks");
 	registerOutput(_count, "count");
 }
 
 void
 SliceGuarantor::updateOutputs()
 {
-	if (!_block->setSlicesFlag(true))
+	boost::shared_ptr<Blocks> extractBlocks = _blockManager->blocksInBox(_box);
+	bool cachedSlices = true;
+	
+	foreach (boost::shared_ptr<Block> block, *extractBlocks)
 	{
-		LOG_DEBUG(sliceguarantorlog) << "The given block has not yet had slices extracted" << std::endl;
+		cachedSlices &= !block->setSlicesFlag(true);
+	}
+	
+	
+	if (!cachedSlices)
+	{
+		LOG_DEBUG(sliceguarantorlog) << "The given blocks have not yet had slices extracted" <<
+			std::endl;
 		LOG_DEBUG(sliceguarantorlog) << "Init'ing local variables" << std::endl;
 		
 		bool guaranteed = false;
 		
-		int wholeCount = 0, extractArea;
+		int extractArea;
 		
-		boost::shared_ptr<Block> inputBlock = _block;
-		
-		boost::shared_ptr<Blocks> extractBlocks = boost::make_shared<Blocks>(inputBlock);
+		boost::shared_ptr<Blocks> guaranteeBlocks = boost::make_shared<Blocks>(extractBlocks);
 		
 		pipeline::Value<SliceStoreResult> sliceWriteCount;
 		
 		boost::shared_ptr<SliceWriter> sliceWriter = boost::make_shared<SliceWriter>();
 		boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
 		
-		
 		extractBlocks->dilateXY();
 		extractArea = extractBlocks->size().x * extractBlocks->size().y;
 		
-		LOG_DEBUG(sliceguarantorlog) << "Extract area " << extractArea << ". Maximum area " << *_maximumArea << std::endl;
+		LOG_DEBUG(sliceguarantorlog) << "Extract area " << extractArea << ". Maximum area " <<
+			*_maximumArea << std::endl;
 		
 		while (!guaranteed && extractBlocks->size().x * extractBlocks->size().y < *_maximumArea)
 		{
 			slices->clear();
-			LOG_DEBUG(sliceguarantorlog) << "Extracting from box at " << extractBlocks->location() << " with size " << extractBlocks->size() << std::endl;
-			guaranteed = guaranteeSlices(extractBlocks, slices);
+			LOG_DEBUG(sliceguarantorlog) << "Extracting from box at " << extractBlocks->location()
+				<< " with size " << extractBlocks->size() << std::endl;
+			guaranteed = guaranteeSlices(extractBlocks, guaranteeBlocks, slices);
 			if (guaranteed)
 			{
 				LOG_DEBUG(sliceguarantorlog) << "success!" << std::endl;
 			}
 			else
 			{
-				LOG_DEBUG(sliceguarantorlog) << "There were unwhole slices in the guarantee block. Trying again" << std::endl;
+				LOG_DEBUG(sliceguarantorlog) <<
+					"There were unwhole slices in the guarantee box. Trying again" << std::endl;
 			}
 		}
+
+		if (extractBlocks->size().x * extractBlocks->size().y >= *_maximumArea)
+		{
+			LOG_ERROR(sliceguarantorlog) << "Extraction size " << extractBlocks->size() <<
+				" has a greater area than the maximum " << *_maximumArea <<
+				". Some large Slices have not been fully extracted." << std::endl;
+		}
 		
-		
-		//_blockSliceStore->setInput("whole", boost::make_shared<pipeline::Wrap<bool> >(true));
-		LOG_DEBUG(sliceguarantorlog) << "Setting slice input on SliceStore" << std::endl;
-		
-		sliceWriter->setInput("slices", slices);
-		sliceWriter->setInput("block", _block);
 		sliceWriter->setInput("store", _sliceStore);
 		
-		LOG_DEBUG(sliceguarantorlog) << "Storing " << slices->size() << " slices, " << wholeCount
-			<< " of which are whole." << std::endl;
+		foreach (boost::shared_ptr<Block> block, *guaranteeBlocks)
+		{
+			LOG_DEBUG(sliceguarantorlog) << "Collecting slices assocated with block at location "
+				<< block->location() << std::endl;
+			boost::shared_ptr<Slices> blockSlices = boost::make_shared<Slices>();
+			
+			foreach(boost::shared_ptr<Slice> slice, *slices)
+			{
+				if (block->overlaps(slice->getComponent()))
+				{
+					blockSlices->add(slice);
+				}
+			}
+			
+			blockSlices->addConflictsFromSlices(*slices);
+			
+			LOG_ALL(sliceguarantorlog) << "Setting slice and Block inputs on SliceStore" <<
+				std::endl;
+			
+			sliceWriter->setInput("slices", blockSlices);
+			sliceWriter->setInput("block", block);
+
+			// Force sliceWriter to run updateOutputs
+			sliceWriteCount = sliceWriter->getOutput();
+			_count->count += sliceWriteCount->count;
+			
+			LOG_DEBUG(sliceguarantorlog) << "Wrote " << sliceWriteCount->count << " slices to Block" << std::endl;
+		}
 		
-		LOG_DEBUG(sliceguarantorlog) << "Storing neighbor blocks" << std::endl;
-		// Force sliceWriter to run updateOutputs
-		sliceWriteCount = sliceWriter->getOutput();
-		*_count = *sliceWriteCount;
-		
-		// Update neighborBlocks output.
-		//*_neighborBlocks = *neighborBlocks;
-		
+		LOG_DEBUG(sliceguarantorlog) << "Wrote " << _count->count << " slices total" << std::endl;
 	}
 }
 
 bool
 SliceGuarantor::guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
+								const boost::shared_ptr<Blocks>& guaranteeBlocks,
 								const boost::shared_ptr<Slices>& slices)
 {
 	LOG_DEBUG(sliceguarantorlog) << "Setting up mini pipeline" << std::endl;
@@ -149,7 +181,7 @@ SliceGuarantor::guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
 		
 		foreach (boost::shared_ptr<Slice> slice, *valueSlices)
 		{
-			if (_block->overlaps(slice->getComponent()))
+			if (guaranteeBlocks->overlaps(slice->getComponent()))
 			{
 				slices->add(slice);
 			}

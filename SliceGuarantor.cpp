@@ -42,11 +42,16 @@ void
 SliceGuarantor::updateOutputs()
 {
 	boost::shared_ptr<Blocks> extractBlocks = _blockManager->blocksInBox(_box);
+	boost::shared_ptr<SliceStoreResult> count = boost::make_shared<SliceStoreResult>();
 	bool cachedSlices = true;
+	
+	LOG_DEBUG(sliceguarantorlog) << "Asked to guarantee " << extractBlocks->length() << " blocks." << std::endl;
+	LOG_DEBUG(sliceguarantorlog) << "Request size: " << _box->size() << std::endl;
+	LOG_DEBUG(sliceguarantorlog) << "Guarantee size: " << extractBlocks->size()<< std::endl;
 	
 	foreach (boost::shared_ptr<Block> block, *extractBlocks)
 	{
-		cachedSlices &= !block->setSlicesFlag(true);
+		cachedSlices &= block->setSlicesFlag(true);
 	}
 	
 	
@@ -123,13 +128,18 @@ SliceGuarantor::updateOutputs()
 
 			// Force sliceWriter to run updateOutputs
 			sliceWriteCount = sliceWriter->getOutput();
-			_count->count += sliceWriteCount->count;
+			count->count += sliceWriteCount->count;
 			
 			LOG_DEBUG(sliceguarantorlog) << "Wrote " << sliceWriteCount->count << " slices to Block" << std::endl;
 		}
 		
-		LOG_DEBUG(sliceguarantorlog) << "Wrote " << _count->count << " slices total" << std::endl;
+		LOG_DEBUG(sliceguarantorlog) << "Wrote " << count->count << " slices total" << std::endl;
 	}
+	else
+	{
+		LOG_DEBUG(sliceguarantorlog) << "All blocks have already been extracted" << std::endl;
+	}
+	*_count = *count;
 }
 
 bool
@@ -159,25 +169,27 @@ SliceGuarantor::guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
 			boost::make_shared<SliceExtractor<unsigned char> >(i);
 		boost::shared_ptr<Slices> guaranteedSlices;
 		pipeline::Value<Slices> valueSlices;
-		
-		
-		LOG_DEBUG(sliceguarantorlog) << "Setting up a SliceExtractor for i " << i
-			<< ", z " << z << std::endl;
 
-		LOG_DEBUG(sliceguarantorlog) << "Setting membrane input" << std::endl;
 		sliceExtractor->setInput("membrane", sliceImageExtractor->getOutput(i));
-		
-		LOG_DEBUG(sliceguarantorlog) << "Setting explanation input" << std::endl;
 		sliceExtractor->setInput("force explanation", _forceExplanation);
 
 		if (_mserParameters)
 		{
-			LOG_DEBUG(sliceguarantorlog) << "Setting MSER Parameters" << std::endl;
 			sliceExtractor->setInput("mser parameters", _mserParameters);
 		}
 		
-		LOG_DEBUG(sliceguarantorlog) << "Collecting output" << std::endl;
 		valueSlices = sliceExtractor->getOutput("slices");
+		
+		LOG_DEBUG(sliceguarantorlog) << "Extracted " << valueSlices->size() << " slices" << std::endl;
+		
+		// Slices are extracted in [0 0 w h]. Translate them to Box coordinates.
+		LOG_DEBUG(sliceguarantorlog) << "Translating slices to request coordinates" << std::endl;
+		foreach(boost::shared_ptr<Slice> slice, *valueSlices)
+		{
+			util::point<int> translate(extractBlocks->location().x, extractBlocks->location().y);
+			slice->translate(translate);
+		}
+	
 		
 		foreach (boost::shared_ptr<Slice> slice, *valueSlices)
 		{
@@ -186,22 +198,14 @@ SliceGuarantor::guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
 				slices->add(slice);
 			}
 		}
-		LOG_DEBUG(sliceguarantorlog) << "Pushing conflicts into output" << std::endl;
 		slices->addConflictsFromSlices(*valueSlices);
 	}
 	
-	// Slices are extracted in [0 0 w h]. Translate them to Box coordinates.
+	
+	LOG_DEBUG(sliceguarantorlog) << "Checking " << slices->size() << " slices for wholeness" << std::endl;
 	foreach(boost::shared_ptr<Slice> slice, *slices)
 	{
-		util::point<int> translate(extractBlocks->location().x, extractBlocks->location().y);
-		slice->translate(translate);
-	}
-	
-	
-	foreach(boost::shared_ptr<Slice> slice, *slices)
-	{
-		
-		checkWhole(slice, extractBlocks, nbdBlocks);
+		checkWhole(slice, guaranteeBlocks, nbdBlocks);
 	}
 	
 	util::point3<unsigned int> nbdSize = nbdBlocks->size();
@@ -209,11 +213,13 @@ SliceGuarantor::guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
 	
 	if (nbdSize.x > extractSize.x && nbdSize.y > extractSize.y)
 	{
+		LOG_DEBUG(sliceguarantorlog) << "Need to expand to at least " << nbdSize << " in order to extract whole slices" << std::endl;
 		extractBlocks->addAll(nbdBlocks->getBlocks());
 		return false;
 	}
 	else
 	{
+		LOG_DEBUG(sliceguarantorlog) << "Looks like we're done" << std::endl;
 		return true;
 	}
 }
@@ -227,6 +233,7 @@ SliceGuarantor::checkWhole(const boost::shared_ptr<Slice>& slice,
 	//TODO: figure out the best way to maintain a map from a slice to its bordering Blocks.
 	// Check whether the slice's bounding box touches the Block boundary
 	util::rect<int> sliceBound = slice->getComponent()->getBoundingBox();
+	
 	point3<unsigned int> blockLocation = extractBlocks->location();
 	point3<unsigned int> blockSize = extractBlocks->size();
 	int borderX = 0, borderY = 0;

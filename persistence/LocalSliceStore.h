@@ -6,11 +6,12 @@
 
 #include <catmaidsopnet/persistence/SliceStore.h>
 
-typedef boost::unordered_map<Slice, boost::shared_ptr<Blocks> > SliceBlockMap;
-typedef boost::unordered_map<Block, boost::shared_ptr<Slices> > BlockSliceMap;
 
 class LocalSliceStore : public SliceStore
 {
+	typedef boost::unordered_map<Slice, boost::shared_ptr<Blocks> > SliceBlockMap;
+	typedef boost::unordered_map<Block, boost::shared_ptr<Slices> > BlockSliceMap;
+
 public:
 	LocalSliceStore();
 
@@ -18,16 +19,26 @@ public:
 
     boost::shared_ptr<Slices> retrieveSlices(const boost::shared_ptr<Block>& block);
 
-	void disassociate(const boost::shared_ptr<Slice>& slice, const boost::shared_ptr<Block>& block);
+	void disassociate(const boost::shared_ptr<Slice>& slice,
+					  const boost::shared_ptr<Block>& block);
 
 	void removeSlice(const boost::shared_ptr<Slice>& slice);
 
 	boost::shared_ptr<Blocks> getAssociatedBlocks(const boost::shared_ptr<Slice>& slice);
+	
+    boost::shared_ptr<LinearConstraints> retrieveConstraints(
+		const boost::shared_ptr<Slices>& slices);
+	
+	void storeConstraints(const boost::shared_ptr<LinearConstraints>& constraints);
+	
+	void storeConflicts(const boost::shared_ptr<Slices>& slices);
 
 
 private:
-	void mapSliceToBlock(const boost::shared_ptr<Slice>& slice, const boost::shared_ptr<Block>& block);
-	void mapBlockToSlice(const boost::shared_ptr<Block>& block, const boost::shared_ptr<Slice>& slice);
+	void mapSliceToBlock(const boost::shared_ptr<Slice>& slice,
+						 const boost::shared_ptr<Block>& block);
+	void mapBlockToSlice(const boost::shared_ptr<Block>& block,
+						 const boost::shared_ptr<Slice>& slice);
 	
 	boost::shared_ptr<SliceBlockMap> _sliceBlockMap;
 	boost::shared_ptr<BlockSliceMap> _blockSliceMap;

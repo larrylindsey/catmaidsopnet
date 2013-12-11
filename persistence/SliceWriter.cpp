@@ -21,5 +21,7 @@ SliceWriter::updateOutputs()
 		++count;
 	}
 	
+	_store->storeConflicts(_slices);
+	
 	*_count = SliceStoreResult(count);
 }

@@ -41,15 +41,16 @@ SliceGuarantor::SliceGuarantor()
 void
 SliceGuarantor::updateOutputs()
 {
-	boost::shared_ptr<Blocks> extractBlocks = _blockManager->blocksInBox(_box);
+	// We're given a Box. Find all Blocks overlapping that Box.
+	boost::shared_ptr<Blocks> guaranteeBlocks = _blockManager->blocksInBox(_box);
 	boost::shared_ptr<SliceStoreResult> count = boost::make_shared<SliceStoreResult>();
 	bool cachedSlices = true;
 	
-	LOG_DEBUG(sliceguarantorlog) << "Asked to guarantee " << extractBlocks->length() << " blocks." << std::endl;
+	LOG_DEBUG(sliceguarantorlog) << "Asked to guarantee " << guaranteeBlocks->length() << " blocks." << std::endl;
 	LOG_DEBUG(sliceguarantorlog) << "Request size: " << _box->size() << std::endl;
-	LOG_DEBUG(sliceguarantorlog) << "Guarantee size: " << extractBlocks->size()<< std::endl;
+	LOG_DEBUG(sliceguarantorlog) << "Guarantee size: " << guaranteeBlocks->size()<< std::endl;
 	
-	foreach (boost::shared_ptr<Block> block, *extractBlocks)
+	foreach (boost::shared_ptr<Block> block, *guaranteeBlocks)
 	{
 		cachedSlices &= block->setSlicesFlag(true);
 	}
@@ -62,25 +63,38 @@ SliceGuarantor::updateOutputs()
 		LOG_DEBUG(sliceguarantorlog) << "Init'ing local variables" << std::endl;
 		
 		bool guaranteed = false;
-		
 		int extractArea;
 		
-		boost::shared_ptr<Blocks> guaranteeBlocks = boost::make_shared<Blocks>(extractBlocks);
-		
+		// Extract blocks is a superset of guarantee blocks.
+		boost::shared_ptr<Blocks> extractBlocks = boost::make_shared<Blocks>(guaranteeBlocks);
+
+		// Value used to force updateOutputs on the slice writer.
 		pipeline::Value<SliceStoreResult> sliceWriteCount;
 		
+		// Slice and LinearConstraints persistence.
 		boost::shared_ptr<SliceWriter> sliceWriter = boost::make_shared<SliceWriter>();
+
+		// Slices and LinearConstraints extracted from the image underlying the requested area.
 		boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
-		
+		boost::shared_ptr<LinearConstraints> constraints = boost::make_shared<LinearConstraints>();
+
+		// Assume that some Slice's will overlap the guarantee box's boundary, so dilate.
 		extractBlocks->dilateXY();
 		extractArea = extractBlocks->size().x * extractBlocks->size().y;
 		
 		LOG_DEBUG(sliceguarantorlog) << "Extract area " << extractArea << ". Maximum area " <<
 			*_maximumArea << std::endl;
-		
+
+
+		// Extract slices from the extract area.
+		// The extract area is expanded until all Slice's extracted from the guarantee area are
+		// whole.
+
 		while (!guaranteed && extractBlocks->size().x * extractBlocks->size().y < *_maximumArea)
 		{
 			slices->clear();
+			constraints->clear();
+			
 			LOG_DEBUG(sliceguarantorlog) << "Extracting from box at " << extractBlocks->location()
 				<< " with size " << extractBlocks->size() << std::endl;
 			guaranteed = guaranteeSlices(extractBlocks, guaranteeBlocks, slices);
@@ -95,6 +109,8 @@ SliceGuarantor::updateOutputs()
 			}
 		}
 
+		// If the extract area is grel maximumArea, then we probably have some not-fully-extracted
+		// Slice's, so tell the user about it.
 		if (extractBlocks->size().x * extractBlocks->size().y >= *_maximumArea)
 		{
 			LOG_ERROR(sliceguarantorlog) << "Extraction size " << extractBlocks->size() <<
@@ -102,6 +118,7 @@ SliceGuarantor::updateOutputs()
 				". Some large Slices have not been fully extracted." << std::endl;
 		}
 		
+		// Setup the SliceWriter, and write away!
 		sliceWriter->setInput("store", _sliceStore);
 		
 		foreach (boost::shared_ptr<Block> block, *guaranteeBlocks)
@@ -110,6 +127,7 @@ SliceGuarantor::updateOutputs()
 				<< block->location() << std::endl;
 			boost::shared_ptr<Slices> blockSlices = boost::make_shared<Slices>();
 			
+			// Collect only the slices that overlap the guarantee box.
 			foreach(boost::shared_ptr<Slice> slice, *slices)
 			{
 				if (block->overlaps(slice->getComponent()))
@@ -118,12 +136,15 @@ SliceGuarantor::updateOutputs()
 				}
 			}
 			
+			// Copy conflict info.
 			blockSlices->addConflictsFromSlices(*slices);
 			
 			LOG_ALL(sliceguarantorlog) << "Setting slice and Block inputs on SliceStore" <<
 				std::endl;
 			
+			// SliceWriter handles the restriction of constraints to the slices that are being pushed.
 			sliceWriter->setInput("slices", blockSlices);
+			sliceWriter->setInput("linear constraints", constraints);
 			sliceWriter->setInput("block", block);
 
 			// Force sliceWriter to run updateOutputs

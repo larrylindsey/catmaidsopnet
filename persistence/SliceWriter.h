@@ -16,6 +16,7 @@ private:
 	
 	pipeline::Input<Block> _block;
 	pipeline::Input<Slices> _slices;
+	pipeline::Input<LinearConstraints> _constraints;
 	pipeline::Input<SliceStore> _store;
 	pipeline::Output<SliceStoreResult> _count;
 };

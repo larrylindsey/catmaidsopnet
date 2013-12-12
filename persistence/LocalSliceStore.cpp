@@ -6,9 +6,10 @@
 logger::LogChannel localslicestorelog("localslicestorelog", "[LocalSliceStore] ");
 
 LocalSliceStore::LocalSliceStore()
-{	
+{
 	_sliceBlockMap = boost::make_shared<SliceBlockMap>();
 	_blockSliceMap = boost::make_shared<BlockSliceMap>();
+	_allConstraints = boost::make_shared<LinearConstraints>();
 }
 
 
@@ -147,15 +148,31 @@ LocalSliceStore::associate(const boost::shared_ptr< Slice >& slice,
 boost::shared_ptr<LinearConstraints>
 LocalSliceStore::retrieveConstraints(const boost::shared_ptr<Slices>& slices)
 {
-
-	return boost::shared_ptr<LinearConstraints>();
+	boost::shared_ptr<LinearConstraints> constraints = boost::make_shared<LinearConstraints>();
+	// The complexity here is super super gross.
+	foreach (LinearConstraint& constraint, *_allConstraints)
+	{
+		foreach (boost::shared_ptr<Slice> slice, *slices)
+		{
+			if (constraint.getCoefficients().count(slice->getId()))
+			{
+				
+				constraints->add(constraint);
+				break;
+			}
+		}
+	}
+	
+	
+	
+	return constraints;
 }
 
 
 void
 LocalSliceStore::storeConstraints(const boost::shared_ptr<LinearConstraints>& constraints)
 {
-
+	_allConstraints->addAll(*constraints);
 }
 
 void

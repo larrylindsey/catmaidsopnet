@@ -64,6 +64,7 @@ private:
 						 const boost::shared_ptr<Slice>& slice);
 	void addConflict(const boost::shared_ptr<Slice>& slice,
 					 const boost::shared_ptr<Slices>& slices);
+	boost::shared_ptr<Slice> equivalentSlice(const boost::shared_ptr<Slice>& slice);
 	
 	boost::shared_ptr<SliceBlockMap> _sliceBlockMap;
 	boost::shared_ptr<BlockSliceMap> _blockSliceMap;

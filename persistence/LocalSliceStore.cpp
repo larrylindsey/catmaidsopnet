@@ -173,12 +173,14 @@ LocalSliceStore::mapSliceToBlock(const boost::shared_ptr< Slice >& slice, const 
 
 
 void
-LocalSliceStore::associate(const boost::shared_ptr< Slice >& slice,
+LocalSliceStore::associate(const boost::shared_ptr< Slice >& sliceIn,
 							const boost::shared_ptr< Block >& block)
 {
 	LOG_ALL(localslicestorelog) << "Got a slice with " <<
-		slice->getComponent()->getSize() << " pixels." << std::endl;
+		sliceIn->getComponent()->getSize() << " pixels." << std::endl;
 
+	boost::shared_ptr<Slice> slice = equivalentSlice(sliceIn);
+	
 	mapBlockToSlice(block, slice);
 	mapSliceToBlock(slice, block);
 	
@@ -312,5 +314,20 @@ LocalSliceStore::SliceStoreLinearConstraint::getConstraint(
 		}
 	}
 	return constraint;
+}
+
+boost::shared_ptr<Slice>
+LocalSliceStore::equivalentSlice(const boost::shared_ptr<Slice>& slice)
+{
+	if (_sliceMasterList.count(*slice))
+	{
+		unsigned int id = _sliceMasterList.find(*slice)->getId();
+		boost::shared_ptr<Slice> eqSlice = (*_idSliceMap)[id];
+		return eqSlice;
+	}
+	else
+	{
+		return slice;
+	}
 }
 

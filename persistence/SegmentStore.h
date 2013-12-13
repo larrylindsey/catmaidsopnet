@@ -7,6 +7,14 @@
 #include <sopnet/block/Blocks.h>
 #include <pipeline/Data.h>
 
+class SegmentStoreResult : public pipeline::Data
+{
+public:
+	SegmentStoreResult() : count(0) {}
+	
+	int count;
+};
+
 /**
  * Abstract Data class that handles the practicalities of storing and retrieving Segments from a store.
  */

@@ -5,6 +5,7 @@
 #include <catmaidsopnet/SliceGuarantor.h>
 #include <catmaidsopnet/persistence/SegmentStore.h>
 #include <sopnet/block/BlockManager.h>
+#include <catmaidsopnet/persistence/SliceReader.h>
 
 class SegmentGuarantor : public pipeline::SimpleProcessNode<>
 {
@@ -24,6 +25,9 @@ private:
 		const boost::shared_ptr<LinearConstraints>& constraints) const;
 	bool isAssociated(const LinearConstraint& constraint,
 					  const boost::shared_ptr<Slices>& slices) const;
+	boost::shared_ptr<Slices> collectNecessarySlices(
+		const boost::shared_ptr<SliceReader>& sliceReader,
+		const boost::shared_ptr<Blocks>& sliceBlocks);
 	
 	pipeline::Input<SegmentStore> _segmentStore;
 	pipeline::Input<SliceStore> _sliceStore;

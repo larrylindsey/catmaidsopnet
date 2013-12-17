@@ -1,6 +1,5 @@
 #include "SegmentGuarantor.h"
 #include <util/Logger.h>
-#include <catmaidsopnet/persistence/SliceReader.h>
 #include <catmaidsopnet/persistence/SegmentWriter.h>
 #include <sopnet/segments/SegmentExtractor.h>
 #include <pipeline/Value.h>
@@ -17,31 +16,59 @@ SegmentGuarantor::SegmentGuarantor()
 	registerOutput(_result, "count");
 }
 
+boost::shared_ptr<Slices>
+SegmentGuarantor::collectNecessarySlices(const boost::shared_ptr<SliceReader>& sliceReader,
+										 const boost::shared_ptr< Blocks >& sliceBlocks)
+{
+	pipeline::Value<Slices> slices;
+	boost::shared_ptr<Blocks> extraBlocks = boost::make_shared<Blocks>(sliceBlocks);
+	boost::shared_ptr<Slices> ptrSlices; // For semi-explicit casting.
+	
+	// Read minimal slices for guaranteed box.
+	sliceReader->setInput("blocks", sliceBlocks);
+	sliceReader->setInput("store", _sliceStore);
+	slices = sliceReader->getOutput("slices");
+	
+	foreach (boost::shared_ptr<Slice> slice, *slices)
+	{
+		if (!extraBlocks->contains(slice->getComponent()->getBoundingBox()))
+		{
+			boost::shared_ptr<Box<> > sliceBox =
+				boost::make_shared<Box<> >(slice->getComponent()->getBoundingBox(),
+						sliceBlocks->location().z, sliceBlocks->size().z);
+			extraBlocks->addAll(_blockManager->blocksInBox(sliceBox));
+		}
+	}
+	
+	sliceReader->setInput("blocks", extraBlocks);
+	slices = sliceReader->getOutput("slices");
+	
+	ptrSlices = slices;
+	
+	return ptrSlices;
+}
+
 
 void SegmentGuarantor::guaranteeSegments(
 	const boost::shared_ptr<Blocks>& guaranteeBlocks,
 	const boost::shared_ptr<Blocks>& sliceBlocks)
 {
 	boost::shared_ptr<SliceReader> sliceReader = boost::make_shared<SliceReader>();
-	pipeline::Value<Slices> slices;
-	pipeline::Value<LinearConstraints> sliceConstraints;
+	boost::shared_ptr<LinearConstraints> emptyConstraints =
+		boost::make_shared<LinearConstraints>();
+	boost::shared_ptr<Slices> slices;
 	boost::shared_ptr<LinearConstraints> segmentConstraints;
 	boost::shared_ptr<Segments> segments;
 	boost::shared_ptr<SegmentWriter> segmentWriter;
+	boost::shared_ptr<Blocks> extraBlocks;
 	pipeline::Value<SegmentStoreResult> result;
 	
 	unsigned int zBegin = guaranteeBlocks->location().z;
 	unsigned int zEnd = zBegin + guaranteeBlocks->size().z;
 	
-	sliceReader->setInput("box", sliceBlocks);
-	sliceReader->setInput("store", _sliceStore);
-	sliceReader->setInput("block manager", _blockManager);
+	slices = collectNecessarySlices(sliceReader, sliceBlocks);
 	
-	slices = sliceReader->getOutput("slices");
-	sliceConstraints = sliceReader->getOutput("linear constraints");
-	
-	LOG_DEBUG(segmentguarantorlog) << "Read " << slices->size() << " slices and " <<
-		sliceConstraints->size() << " constraints" << std::endl;
+	LOG_DEBUG(segmentguarantorlog) << "Read " << slices->size() << " slices." << std::endl;
 	
 	for (unsigned int z = zBegin; z < zEnd; ++z)
 	{
@@ -50,19 +77,14 @@ void SegmentGuarantor::guaranteeSegments(
 		
 		boost::shared_ptr<SegmentExtractor> extractor = boost::make_shared<SegmentExtractor>();
 		boost::shared_ptr<Slices> prevSlices = collectSlicesByZ(slices, z);
-		boost::shared_ptr<Slices> nextSlices = collectSlicesByZ(slices, z);
-		boost::shared_ptr<LinearConstraints> prevConstraints = 
-			collectConstraints(prevSlices, sliceConstraints);
-		boost::shared_ptr<LinearConstraints> nextConstraints = 
-			collectConstraints(nextSlices, sliceConstraints);
+		boost::shared_ptr<Slices> nextSlices = collectSlicesByZ(slices, z + 1);
 		
 		extractor->setInput("previous slices", prevSlices);
 		extractor->setInput("next slices", nextSlices);
-		extractor->setInput("previous linear constraints", prevConstraints);
-		extractor->setInput("next linear constraints", nextConstraints);
+		extractor->setInput("previous linear constraints", emptyConstraints);
+		extractor->setInput("next linear constraints", emptyConstraints);
 		
 		extractedSegments = extractor->getOutput("segments");
-		extractedConstraints = extractor->getOutput("linear constraints");
 		
 		segments->addAll(extractedSegments);
 		segmentConstraints->addAll(*extractedConstraints);
@@ -93,10 +115,10 @@ void SegmentGuarantor::updateOutputs()
 	if (!allExtracted)
 	{
 		
-		// We need the boundaries at +z, +/- x and +/- y to be complete.
+		// We need the slices across the +z boundary, in order to ensure that we'll extract all
+		// of the required segments.
 		sliceBlocks->expand(util::ptrTo(0, 0, 1));
-		sliceBlocks->dilateXY();
-		
+
 		// Check that we have slices in all of the necessary blocks.
 		foreach (boost::shared_ptr<Block> block, *sliceBlocks)
 		{

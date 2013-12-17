@@ -7,19 +7,54 @@ logger::LogChannel slicereaderlog("slicereaderlog", "[SliceReader] ");
 
 SliceReader::SliceReader()
 {
-	registerInput(_box, "box");
+	registerInput(_box, "box", pipeline::Optional);
+	registerInput(_blocks, "blocks", pipeline::Optional);
 	registerInput(_store, "store");
 	registerInput(_blockManager, "block manager");
 	registerOutput(_slices, "slices");
 	registerOutput(_constraints, "linear constraints");
+	
+	_box.registerBackwardCallback(&SliceReader::onBoxSet, this);
+	_blocks.registerBackwardCallback(&SliceReader::onBlocksSet, this);
 }
+
+void SliceReader::onBoxSet(const pipeline::InputSetBase& )
+{
+	_sourceIsBox = true;
+}
+
+void SliceReader::onBlocksSet(const pipeline::InputSetBase& )
+{
+	_sourceIsBox = false;
+	setInput("block manager", _blocks->getManager());
+}
+
+
 
 void SliceReader::updateOutputs()
 {
 	boost::unordered_set<Slice> sliceSet;
 	boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
-	
-	boost::shared_ptr<Blocks> blocks = _blockManager->blocksInBox(_box);
+	boost::shared_ptr<Blocks> blocks;
+
+	if (!_blocks && !_box)
+	{
+		LOG_ERROR(slicereaderlog) << "Need either box or blocks, neither was set" << std::endl;
+		boost::shared_ptr<LinearConstraints> constraints = boost::make_shared<LinearConstraints>();
+		*_slices = *slices;
+		*_constraints = *constraints;
+		return;
+	}
+	else if (_sourceIsBox)
+	{
+		LOG_ERROR(slicereaderlog) << "Blocks derived from box input" << std::endl;
+		blocks = _blockManager->blocksInBox(_box);
+	}
+	else
+	{
+		LOG_ERROR(slicereaderlog) << "Using blocks input directly" << std::endl;
+		blocks = _blocks;
+	}
 	
 	foreach (boost::shared_ptr<Block> block, *blocks)
 	{

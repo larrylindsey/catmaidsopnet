@@ -18,10 +18,9 @@ SliceGuarantor::SliceGuarantor()
 	registerInput(_sliceStore, "store");	
 	registerInput(_blockFactory, "block factory");
 	registerInput(_forceExplanation, "force explanation");
-	registerInput(_parameters, "parameters");
 	registerInput(_maximumArea, "maximum area");
-	//registerInput(_mserParameters, "mser parameters");
-	//registerOutput(_neighborBlocks, "neighbor blocks");
+	registerInput(_mserParameters, "mser parameters", pipeline::Optional);
+
 	registerOutput(_count, "count");
 }
 
@@ -32,6 +31,9 @@ SliceGuarantor::updateOutputs()
 	boost::shared_ptr<Blocks> guaranteeBlocks = _blockManager->blocksInBox(_box);
 	boost::shared_ptr<SliceStoreResult> count = boost::make_shared<SliceStoreResult>();
 	bool cachedSlices = true;
+
+	// Expand in z. Segment guarantor needs +z boundary, if it exists.
+	guaranteeBlocks->expand(util::ptrTo(0, 0, 1));
 	
 	LOG_DEBUG(sliceguarantorlog) << "Asked to guarantee " << guaranteeBlocks->length() << " blocks." << std::endl;
 	LOG_DEBUG(sliceguarantorlog) << "Request size: " << _box->size() << std::endl;
@@ -174,7 +176,7 @@ SliceGuarantor::guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
 	{
 		unsigned int z = i + zMin;
 		boost::shared_ptr<ProcessNode> sliceExtractor =
-			boost::make_shared<SliceExtractor<unsigned char> >(i);
+			boost::make_shared<SliceExtractor<unsigned char> >(z);
 		boost::shared_ptr<Slices> guaranteedSlices;
 		pipeline::Value<Slices> valueSlices;
 
@@ -210,7 +212,8 @@ SliceGuarantor::guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
 	}
 	
 	
-	LOG_DEBUG(sliceguarantorlog) << "Checking " << slices->size() << " slices for wholeness" << std::endl;
+	LOG_DEBUG(sliceguarantorlog) << "Checking " << slices->size() << " slices for wholeness" <<
+		std::endl;
 	foreach(boost::shared_ptr<Slice> slice, *slices)
 	{
 		checkWhole(slice, guaranteeBlocks, nbdBlocks);
@@ -221,7 +224,8 @@ SliceGuarantor::guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
 	
 	if (nbdSize.x > extractSize.x && nbdSize.y > extractSize.y)
 	{
-		LOG_DEBUG(sliceguarantorlog) << "Need to expand to at least " << nbdSize << " in order to extract whole slices" << std::endl;
+		LOG_DEBUG(sliceguarantorlog) << "Need to expand to at least " << nbdSize <<
+			" in order to extract whole slices" << std::endl;
 		extractBlocks->addAll(nbdBlocks->getBlocks());
 		return false;
 	}

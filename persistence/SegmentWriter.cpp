@@ -18,25 +18,7 @@ void SegmentWriter::updateOutputs()
 	
 	foreach(boost::shared_ptr<Block> block, *blocks)
 	{
-		foreach (boost::shared_ptr<EndSegment> segment, _segments->getEnds())
-		{
-			if (associated(segment, block))
-			{
-				_store->associate(segment, block);
-				result->count += 1;
-			}
-		}
-		
-		foreach (boost::shared_ptr<ContinuationSegment> segment, _segments->getContinuations())
-		{
-			if (associated(segment, block))
-			{
-				_store->associate(segment, block);
-				result->count += 1;
-			}
-		}
-		
-		foreach (boost::shared_ptr<BranchSegment> segment, _segments->getBranches())
+		foreach (boost::shared_ptr<Segment> segment, _segments->getSegments())
 		{
 			if (associated(segment, block))
 			{

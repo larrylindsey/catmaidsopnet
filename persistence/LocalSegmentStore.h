@@ -9,10 +9,13 @@
 #include <sopnet/segments/Segments.h>
 #include <sopnet/block/Block.h>
 #include <sopnet/block/Blocks.h>
+#include "SegmentPointerHash.h"
+
 
 class LocalSegmentStore : public SegmentStore
 {
-	typedef boost::unordered_map<Segment, boost::shared_ptr<Blocks> > SegmentBlockMap;
+	typedef boost::unordered_map<boost::shared_ptr<Segment>, boost::shared_ptr<Blocks>,
+		SegmentPointerHash, SegmentPointerEquals > SegmentBlockMap;
 	typedef boost::unordered_map<Block, boost::shared_ptr<Segments> > BlockSegmentMap;
 	typedef boost::unordered_map<unsigned int, boost::shared_ptr<Segment> > IdSegmentMap;
 	
@@ -58,7 +61,7 @@ private:
 	boost::shared_ptr<BlockSegmentMap> _blockSegmentMap;
 	boost::shared_ptr<IdSegmentMap> _idSegmentMap;
 	
-	boost::unordered_set<Segment> _segmentMasterList;
+	SegmentSet _segmentMasterList;
 
 };
 

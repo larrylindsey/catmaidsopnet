@@ -57,9 +57,9 @@ void SegmentGuarantor::guaranteeSegments(
 	boost::shared_ptr<LinearConstraints> emptyConstraints =
 		boost::make_shared<LinearConstraints>();
 	boost::shared_ptr<Slices> slices;
-	boost::shared_ptr<LinearConstraints> segmentConstraints;
-	boost::shared_ptr<Segments> segments;
-	boost::shared_ptr<SegmentWriter> segmentWriter;
+	//boost::shared_ptr<LinearConstraints> segmentConstraints;
+	boost::shared_ptr<Segments> segments = boost::make_shared<Segments>();
+	boost::shared_ptr<SegmentWriter> segmentWriter = boost::make_shared<SegmentWriter>();
 	boost::shared_ptr<Blocks> extraBlocks;
 	pipeline::Value<SegmentStoreResult> result;
 	
@@ -81,13 +81,16 @@ void SegmentGuarantor::guaranteeSegments(
 		
 		extractor->setInput("previous slices", prevSlices);
 		extractor->setInput("next slices", nextSlices);
-		extractor->setInput("previous linear constraints", emptyConstraints);
-		extractor->setInput("next linear constraints", emptyConstraints);
+		//extractor->setInput("previous linear constraints", emptyConstraints);
+		//extractor->setInput("next linear constraints", emptyConstraints);
 		
 		extractedSegments = extractor->getOutput("segments");
 		
+		LOG_DEBUG(segmentguarantorlog) << "Extractor getOutput has returned" << std::endl;
+		LOG_DEBUG(segmentguarantorlog) << "Got " << extractedSegments->size() << " segments" << std::endl;
+		
 		segments->addAll(extractedSegments);
-		segmentConstraints->addAll(*extractedConstraints);
+		//segmentConstraints->addAll(*extractedConstraints);
 	}
 	
 	segmentWriter->setInput("segments", segments);
@@ -189,12 +192,14 @@ boost::shared_ptr<Slices> SegmentGuarantor::collectSlicesByZ(
 	
 	foreach (boost::shared_ptr<Slice> slice, *slices)
 	{
-		if (slice->getId() == z)
+		if (slice->getSection() == z)
 		{
 			zSlices->add(slice);
 			zSlices->setConflicts(slice->getId(), slices->getConflicts(slice->getId()));
 		}
 	}
+	
+	LOG_DEBUG(segmentguarantorlog) << "Collected " << zSlices->size() << " slices for z=" << z << std::endl;
 	
 	return zSlices;
 }

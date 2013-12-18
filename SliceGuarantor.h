@@ -13,8 +13,6 @@
 #include <imageprocessing/MserParameters.h>
 #include "SliceGuarantorParameters.h"
 
-typedef Box<unsigned int> UBox;
-
 class SliceGuarantor : public pipeline::SimpleProcessNode<>
 {
 public:
@@ -41,10 +39,9 @@ private:
 	pipeline::Input<MserParameters> _mserParameters;
 	pipeline::Input<SliceStore> _sliceStore;
 	pipeline::Input<ImageBlockFactory> _blockFactory;
-	pipeline::Input<UBox> _box;
+	pipeline::Input<Box<> > _box;
 	pipeline::Input<bool> _forceExplanation;
 	pipeline::Input<unsigned int> _maximumArea;
-	pipeline::Input<SliceGuarantorParameters> _parameters;
 	pipeline::Input<BlockManager> _blockManager;
 	
 	pipeline::Output<Blocks> _neighborBlocks;

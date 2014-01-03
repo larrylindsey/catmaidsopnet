@@ -102,8 +102,6 @@ LocalSegmentStore::getSegments(const boost::shared_ptr< Block >& block,
 		(*_blockSegmentMap)[*block] = segments;
 	}
 	
-	LOG_DEBUG(localsegmentstorelog) << "Checking segments for existence" << std::endl;
-	
 	foreach (boost::shared_ptr<Segment> cSegment, segments->getSegments())
 	{
 		if (*segment == *cSegment)
@@ -172,18 +170,14 @@ LocalSegmentStore::addSegmentToMasterList(const boost::shared_ptr< Segment >& se
 boost::shared_ptr<Segment>
 LocalSegmentStore::equivalentSegment(const boost::shared_ptr<Segment>& segment)
 {
-	LOG_DEBUG(localsegmentstorelog) << "Finding equivalent for " << segment->getId() << std::endl;
 	if (_segmentMasterList.count(segment))
 	{
-		LOG_DEBUG(localsegmentstorelog) << "Segment exists" << std::endl;
 		unsigned int id = (*_segmentMasterList.find(segment))->getId();
 		boost::shared_ptr<Segment> eqSegment = (*_idSegmentMap)[id];
-		LOG_DEBUG(localsegmentstorelog) << "Returning segment with id " << id << std::endl;
 		return eqSegment;
 	}
 	else
 	{
-		LOG_DEBUG(localsegmentstorelog) << "Segment is new" << std::endl;
 		return segment;
 	}
 }

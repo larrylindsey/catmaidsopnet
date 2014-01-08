@@ -25,7 +25,7 @@
 #include <catmaidsopnet/persistence/SegmentReader.h>
 #include <catmaidsopnet/persistence/SliceReader.h>
 
-class BlockSolver : public pipeline::ProcessNode
+class BlockSolver : public pipeline::SimpleProcessNode<>
 {
 public:
 	BlockSolver();
@@ -34,6 +34,8 @@ private:
 	void onBoxSet(pipeline::InputSetBase&);
 	void onBlocksSet(pipeline::InputSetBase&);
 	void onBlockManagerSet(pipeline::InputSetBase&);
+	void updateOutputs();
+	
 	
 	pipeline::Input<PriorCostFunctionParameters> _priorCostFunctionParameters;
 	pipeline::Input<Blocks> _blocks;
@@ -43,6 +45,8 @@ private:
 	pipeline::Input<SliceStore> _sliceStore;
 	pipeline::Input<ImageBlockFactory> _rawImageFactory;
 	pipeline::Input<ImageBlockFactory> _membraneFactory;
+	
+	pipeline::Output<SegmentTrees> _neurons;
 	
 	boost::shared_ptr<ProblemAssembler> _problemAssembler;
 	boost::shared_ptr<ConsistencyConstraintExtractor> _constraintExtractor;

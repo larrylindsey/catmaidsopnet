@@ -1,6 +1,7 @@
 #include "BlockSolver.h"
 #include <boost/make_shared.hpp>
 #include <util/ProgramOptions.h>
+#include <pipeline/Value.h>
 
 
 util::ProgramOption optionRandomForestFileBlock(
@@ -25,43 +26,35 @@ BlockSolver::BlockSolver() :
 	_randomForestCostFunction(boost::make_shared<RandomForestCostFunction>()),
 	_objectiveGenerator(boost::make_shared<ObjectiveGenerator>())
 {
-	std::cout << " begin " << std::endl;
-	
-	boost::shared_ptr<LinearSolverParameters> binarySolverParameters = 
-		boost::make_shared<LinearSolverParameters>(Binary);
-	
-	std::cout << " A " << std::endl;
-		
 	registerInput(_priorCostFunctionParameters, "prior cost parameters");
-	registerInput(_box, "box");
-	registerInput(_blocks, "blocks");
-	
-	std::cout << " B " << std::endl;
+	registerInput(_box, "box", pipeline::Optional);
+	registerInput(_blocks, "blocks", pipeline::Optional);
+	registerInput(_blockManager, "block manager", pipeline::Optional);
 	
 	registerInput(_segmentStore, "segment store");
 	registerInput(_sliceStore, "slice store");
 	registerInput(_rawImageFactory, "raw image factory");
 	registerInput(_membraneFactory, "membrane factory");
 	
-	registerOutput(_neuronExtractor->getOutput(), "neurons");
+	registerOutput(_neurons, "neurons");
 	
-	std::cout << " C " << std::endl;
 	
 	_blocks.registerBackwardCallback(&BlockSolver::onBlocksSet, this);
 	_box.registerBackwardCallback(&BlockSolver::onBoxSet, this);
 	_blockManager.registerBackwardCallback(&BlockSolver::onBlockManagerSet, this);
-	
-	std::cout << " D " << std::endl;
+}
+
+void
+BlockSolver::updateOutputs()
+{
+	boost::shared_ptr<LinearSolverParameters> binarySolverParameters = 
+		boost::make_shared<LinearSolverParameters>(Binary);
+	pipeline::Value<SegmentTrees> neurons;
 	
 	_segmentReader->setInput("store", _segmentStore);
-	std::cout << " D.1 " << std::endl;
 	_sliceReader->setInput("store", _sliceStore);
-	std::cout << " D.2 " << std::endl;
 	_rawImageStackReader->setInput("factory", _rawImageFactory);
-	std::cout << " D.3 " << std::endl;
 	_membraneStackReader->setInput("factory", _membraneFactory);
-	
-	std::cout << " E " << std::endl;
 	
 	_constraintExtractor->setInput("slices", _sliceReader->getOutput("slices"));
 	_constraintExtractor->setInput("segments", _segmentReader->getOutput("segments"));
@@ -95,7 +88,11 @@ BlockSolver::BlockSolver() :
 	_reconstructor->setInput("solution", _linearSolver->getOutput());
 
 	_neuronExtractor->setInput("solution", _reconstructor->getOutput());
+	
+	neurons = _neuronExtractor->getOutput();
+	*_neurons = *neurons;
 }
+
 
 void
 BlockSolver::onBlockManagerSet(pipeline::InputSetBase& )

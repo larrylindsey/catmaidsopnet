@@ -31,16 +31,11 @@ public:
 	BlockSolver();
 	
 private:
-	void onBoxSet(pipeline::InputSetBase&);
-	void onBlocksSet(pipeline::InputSetBase&);
-	void onBlockManagerSet(pipeline::InputSetBase&);
 	void updateOutputs();
-	
+	boost::shared_ptr<Blocks> computeBound();
 	
 	pipeline::Input<PriorCostFunctionParameters> _priorCostFunctionParameters;
 	pipeline::Input<Blocks> _blocks;
-	pipeline::Input<Box<> > _box;
-	pipeline::Input<BlockManager> _blockManager;
 	pipeline::Input<SegmentStore> _segmentStore;
 	pipeline::Input<SliceStore> _sliceStore;
 	pipeline::Input<ImageBlockFactory> _rawImageFactory;
@@ -62,9 +57,7 @@ private:
 	boost::shared_ptr<RandomForestCostFunction> _randomForestCostFunction;
 	boost::shared_ptr<SegmentFeaturesExtractor> _segmentFeaturesExtractor;
 	boost::shared_ptr<ObjectiveGenerator> _objectiveGenerator;
-	
-	boost::shared_ptr<Box<> > _pipelineBox;
-	boost::shared_ptr<BlockManager> _pipelineBlockManager;
+
 };
 
 #endif //BLOCK_SOLVER_H__

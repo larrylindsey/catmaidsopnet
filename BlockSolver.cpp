@@ -28,9 +28,7 @@ BlockSolver::BlockSolver() :
 	_segmentFeaturesExtractor(boost::make_shared<SegmentFeaturesExtractor>())
 {
 	registerInput(_priorCostFunctionParameters, "prior cost parameters");
-	registerInput(_box, "box", pipeline::Optional);
-	registerInput(_blocks, "blocks", pipeline::Optional);
-	registerInput(_blockManager, "block manager", pipeline::Optional);
+	registerInput(_blocks, "blocks");
 	
 	registerInput(_segmentStore, "segment store");
 	registerInput(_sliceStore, "slice store");
@@ -38,11 +36,6 @@ BlockSolver::BlockSolver() :
 	registerInput(_membraneFactory, "membrane factory");
 	
 	registerOutput(_neurons, "neurons");
-	
-	
-	_blocks.registerBackwardCallback(&BlockSolver::onBlocksSet, this);
-	_box.registerBackwardCallback(&BlockSolver::onBoxSet, this);
-	_blockManager.registerBackwardCallback(&BlockSolver::onBlockManagerSet, this);
 }
 
 void
@@ -51,16 +44,16 @@ BlockSolver::updateOutputs()
 	boost::shared_ptr<LinearSolverParameters> binarySolverParameters = 
 		boost::make_shared<LinearSolverParameters>(Binary);
 	pipeline::Value<SegmentTrees> neurons;
-	boost::shared_ptr<pipeline::Wrap<util::point3<unsigned int> > > offset = 
-		boost::make_shared<pipeline::Wrap<util::point3<unsigned int> > >(_pipelineBox->location());
+	boost::shared_ptr<pipeline::Wrap<util::point3<unsigned int> > > offset;
+		
+	boost::shared_ptr<Blocks> boundingBlocks;
+		
+		
+	_segmentReader->setInput("blocks", _blocks);
+	_sliceReader->setInput("blocks", _blocks);
 	
-	_segmentReader->setInput("box", _pipelineBox);
-	_sliceReader->setInput("box", _pipelineBox);
-	_rawImageStackReader->setInput("block", _pipelineBox);
-	_membraneStackReader->setInput("block", _pipelineBox);
-	
-	_segmentReader->setInput("block manager", _pipelineBlockManager);
-	_sliceReader->setInput("block manager", _pipelineBlockManager);
+	_segmentReader->setInput("block manager", _blocks);
+	_sliceReader->setInput("block manager", _blocks);
 	
 	_segmentReader->setInput("store", _segmentStore);
 	_sliceReader->setInput("store", _sliceStore);
@@ -73,7 +66,16 @@ BlockSolver::updateOutputs()
 	_problemAssembler->addInput("segments", _segmentReader->getOutput("segments"));
 	_problemAssembler->addInput("linear constraints",
 								_constraintExtractor->getOutput("linear constraints"));
-
+	
+	// Use problem assembler output to compute the bounding box we need to contain all
+	// of the slices that are present. This will usually be larger than the requested
+	// Blocks.
+	boundingBlocks = computeBound();
+	offset = boost::make_shared<pipeline::Wrap<util::point3<unsigned int> > >(
+		boundingBlocks->location());
+	_rawImageStackReader->setInput("block", boundingBlocks);
+	_membraneStackReader->setInput("block", boundingBlocks);
+	
 	_segmentFeaturesExtractor->setInput("crop offset", offset);
 	_segmentFeaturesExtractor->setInput("segments", _problemAssembler->getOutput("segments"));
 	_segmentFeaturesExtractor->setInput("raw sections", _rawImageStackReader->getOutput());
@@ -107,22 +109,36 @@ BlockSolver::updateOutputs()
 	*_neurons = *neurons;
 }
 
-
-void
-BlockSolver::onBlockManagerSet(pipeline::InputSetBase& )
+boost::shared_ptr<Blocks>
+BlockSolver::computeBound()
 {
-	_pipelineBlockManager = _blockManager;
+	pipeline::Value<Segments> segments = _problemAssembler->getOutput("segments");
+	if (segments->size() > 0)
+	{
+			
+		util::rect<int> bound =
+			segments->getSegments()[0]->getSlices()[0]->getComponent()->getBoundingBox();
+		boost::shared_ptr<Box<> > box;
+		boost::shared_ptr<Blocks> boundBlocks;
+			
+		foreach (boost::shared_ptr<Segment> segment, segments->getSegments())
+		{
+			foreach (boost::shared_ptr<Slice> slice, segment->getSlices())
+			{
+				util::rect<int> componentBound = slice->getComponent()->getBoundingBox();
+				bound.fit(componentBound);
+			}
+		}
+		
+		box = boost::make_shared<Box<> >(bound, _blocks->location().z, _blocks->size().z);
+		
+		boundBlocks = _blocks->getManager()->blocksInBox(box);
+		return boundBlocks;
+	}
+	else
+	{
+		return _blocks;
+	}
 }
 
-void
-BlockSolver::onBlocksSet(pipeline::InputSetBase& )
-{
-	*_pipelineBox = *_blocks;
-	_pipelineBlockManager = _blocks->getManager();
-}
 
-void
-BlockSolver::onBoxSet(pipeline::InputSetBase& )
-{
-	_pipelineBox = _box;
-}

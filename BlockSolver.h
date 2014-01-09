@@ -62,6 +62,9 @@ private:
 	boost::shared_ptr<RandomForestCostFunction> _randomForestCostFunction;
 	boost::shared_ptr<SegmentFeaturesExtractor> _segmentFeaturesExtractor;
 	boost::shared_ptr<ObjectiveGenerator> _objectiveGenerator;
+	
+	boost::shared_ptr<Box<> > _pipelineBox;
+	boost::shared_ptr<BlockManager> _pipelineBlockManager;
 };
 
 #endif //BLOCK_SOLVER_H__

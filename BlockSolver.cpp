@@ -24,7 +24,8 @@ BlockSolver::BlockSolver() :
 	_rawImageStackReader(boost::make_shared<ImageBlockStackReader>()),
 	_membraneStackReader(boost::make_shared<ImageBlockStackReader>()),
 	_randomForestCostFunction(boost::make_shared<RandomForestCostFunction>()),
-	_objectiveGenerator(boost::make_shared<ObjectiveGenerator>())
+	_objectiveGenerator(boost::make_shared<ObjectiveGenerator>()),
+	_segmentFeaturesExtractor(boost::make_shared<SegmentFeaturesExtractor>())
 {
 	registerInput(_priorCostFunctionParameters, "prior cost parameters");
 	registerInput(_box, "box", pipeline::Optional);
@@ -50,6 +51,16 @@ BlockSolver::updateOutputs()
 	boost::shared_ptr<LinearSolverParameters> binarySolverParameters = 
 		boost::make_shared<LinearSolverParameters>(Binary);
 	pipeline::Value<SegmentTrees> neurons;
+	boost::shared_ptr<pipeline::Wrap<util::point3<unsigned int> > > offset = 
+		boost::make_shared<pipeline::Wrap<util::point3<unsigned int> > >(_pipelineBox->location());
+	
+	_segmentReader->setInput("box", _pipelineBox);
+	_sliceReader->setInput("box", _pipelineBox);
+	_rawImageStackReader->setInput("block", _pipelineBox);
+	_membraneStackReader->setInput("block", _pipelineBox);
+	
+	_segmentReader->setInput("block manager", _pipelineBlockManager);
+	_sliceReader->setInput("block manager", _pipelineBlockManager);
 	
 	_segmentReader->setInput("store", _segmentStore);
 	_sliceReader->setInput("store", _sliceStore);
@@ -59,10 +70,11 @@ BlockSolver::updateOutputs()
 	_constraintExtractor->setInput("slices", _sliceReader->getOutput("slices"));
 	_constraintExtractor->setInput("segments", _segmentReader->getOutput("segments"));
 	
-	_problemAssembler->setInput("segments", _segmentReader->getOutput("segments"));
-	_problemAssembler->setInput("linear constraints",
+	_problemAssembler->addInput("segments", _segmentReader->getOutput("segments"));
+	_problemAssembler->addInput("linear constraints",
 								_constraintExtractor->getOutput("linear constraints"));
-	
+
+	_segmentFeaturesExtractor->setInput("crop offset", offset);
 	_segmentFeaturesExtractor->setInput("segments", _problemAssembler->getOutput("segments"));
 	_segmentFeaturesExtractor->setInput("raw sections", _rawImageStackReader->getOutput());
 	
@@ -87,7 +99,9 @@ BlockSolver::updateOutputs()
 	_reconstructor->setInput("segments", _problemAssembler->getOutput("segments"));
 	_reconstructor->setInput("solution", _linearSolver->getOutput());
 
-	_neuronExtractor->setInput("solution", _reconstructor->getOutput());
+	_neuronExtractor->setInput("segments", _reconstructor->getOutput());
+	
+	std::cout << " GO! " << std::endl;
 	
 	neurons = _neuronExtractor->getOutput();
 	*_neurons = *neurons;
@@ -97,24 +111,18 @@ BlockSolver::updateOutputs()
 void
 BlockSolver::onBlockManagerSet(pipeline::InputSetBase& )
 {
-	_segmentReader->setInput("block manager", _blockManager);
-	_sliceReader->setInput("block manager", _blockManager);
+	_pipelineBlockManager = _blockManager;
 }
 
 void
 BlockSolver::onBlocksSet(pipeline::InputSetBase& )
 {
-	_segmentReader->setInput("blocks", _blocks);
-	_sliceReader->setInput("blocks", _blocks);
-	_rawImageStackReader->setInput("box", _blocks);
-	_membraneStackReader->setInput("box", _blocks);
+	*_pipelineBox = *_blocks;
+	_pipelineBlockManager = _blocks->getManager();
 }
 
 void
 BlockSolver::onBoxSet(pipeline::InputSetBase& )
 {
-	_segmentReader->setInput("box", _blocks);
-	_sliceReader->setInput("box", _blocks);
-	_rawImageStackReader->setInput("box", _blocks);
-	_membraneStackReader->setInput("box", _blocks);
+	_pipelineBox = _box;
 }

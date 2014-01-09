@@ -19,7 +19,7 @@ ConsistencyConstraintExtractor::ConsistencyConstraintExtractor()
 {
 	registerInput(_slices, "slices");
 	registerInput(_segments, "segments");
-	registerOutput(_linearConstraints, "constraints");
+	registerOutput(_linearConstraints, "linear constraints");
 }
 
 void ConsistencyConstraintExtractor::updateOutputs()

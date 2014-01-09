@@ -52,9 +52,6 @@ BlockSolver::updateOutputs()
 	_segmentReader->setInput("blocks", _blocks);
 	_sliceReader->setInput("blocks", _blocks);
 	
-	_segmentReader->setInput("block manager", _blocks);
-	_sliceReader->setInput("block manager", _blocks);
-	
 	_segmentReader->setInput("store", _segmentStore);
 	_sliceReader->setInput("store", _sliceStore);
 	_rawImageStackReader->setInput("factory", _rawImageFactory);
@@ -133,6 +130,7 @@ BlockSolver::computeBound()
 		box = boost::make_shared<Box<> >(bound, _blocks->location().z, _blocks->size().z);
 		
 		boundBlocks = _blocks->getManager()->blocksInBox(box);
+		boundBlocks->expand(util::ptrTo(0,0,1));
 		return boundBlocks;
 	}
 	else

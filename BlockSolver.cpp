@@ -21,6 +21,7 @@ BlockSolver::BlockSolver() :
 	_segmentReader(boost::make_shared<SegmentReader>()),
 	_sliceReader(boost::make_shared<SliceReader>()),
 	_priorCostFunction(boost::make_shared<PriorCostFunction>()),
+	_segmentationCostFunction(boost::make_shared<SegmentationCostFunction>()),
 	_rawImageStackReader(boost::make_shared<ImageBlockStackReader>()),
 	_membraneStackReader(boost::make_shared<ImageBlockStackReader>()),
 	_randomForestCostFunction(boost::make_shared<RandomForestCostFunction>()),
@@ -29,6 +30,9 @@ BlockSolver::BlockSolver() :
 {
 	registerInput(_priorCostFunctionParameters, "prior cost parameters");
 	registerInput(_blocks, "blocks");
+	
+	registerInput(_segmentationCostFunctionParameters, "segmentation cost parameters",
+				pipeline::Optional);
 	
 	registerInput(_segmentStore, "segment store");
 	registerInput(_sliceStore, "slice store");
@@ -54,8 +58,11 @@ BlockSolver::updateOutputs()
 	
 	_segmentReader->setInput("store", _segmentStore);
 	_sliceReader->setInput("store", _sliceStore);
+	
 	_rawImageStackReader->setInput("factory", _rawImageFactory);
-	_membraneStackReader->setInput("factory", _membraneFactory);
+	
+	
+	
 	
 	_constraintExtractor->setInput("slices", _sliceReader->getOutput("slices"));
 	_constraintExtractor->setInput("segments", _segmentReader->getOutput("segments"));
@@ -71,7 +78,8 @@ BlockSolver::updateOutputs()
 	offset = boost::make_shared<pipeline::Wrap<util::point3<unsigned int> > >(
 		boundingBlocks->location());
 	_rawImageStackReader->setInput("block", boundingBlocks);
-	_membraneStackReader->setInput("block", boundingBlocks);
+	
+	
 	
 	_segmentFeaturesExtractor->setInput("crop offset", offset);
 	_segmentFeaturesExtractor->setInput("segments", _problemAssembler->getOutput("segments"));
@@ -90,6 +98,18 @@ BlockSolver::updateOutputs()
 								  _randomForestCostFunction->getOutput("cost function"));
 	_objectiveGenerator->addInput("additional cost functions",
 								  _priorCostFunction->getOutput("cost function"));
+	
+	if (_segmentationCostFunctionParameters)
+	{
+		_membraneStackReader->setInput("factory", _membraneFactory);
+		_membraneStackReader->setInput("block", boundingBlocks);
+		_segmentationCostFunction->setInput("membranes", _membraneStackReader->getOutput());
+		_segmentationCostFunction->setInput("parameters", _segmentationCostFunctionParameters);
+		_segmentationCostFunction->setInput("crop offset", offset);
+		_objectiveGenerator->addInput("additional cost functions",
+									  _segmentationCostFunction->getOutput("cost function"));
+	}
+
 	
 	_linearSolver->setInput("objective", _objectiveGenerator->getOutput());
 	_linearSolver->setInput("linear constraints", _problemAssembler->getOutput("linear constraints"));

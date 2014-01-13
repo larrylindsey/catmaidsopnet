@@ -13,6 +13,8 @@
 #include <sopnet/inference/ProblemAssembler.h>
 #include <sopnet/inference/RandomForestCostFunction.h>
 #include <sopnet/inference/ObjectiveGenerator.h>
+#include <sopnet/inference/SegmentationCostFunctionParameters.h>
+#include <sopnet/inference/SegmentationCostFunction.h>
 #include <sopnet/inference/io/RandomForestHdf5Reader.h>
 #include <sopnet/neurons/NeuronExtractor.h>
 #include <sopnet/block/Blocks.h>
@@ -35,6 +37,7 @@ private:
 	boost::shared_ptr<Blocks> computeBound();
 	
 	pipeline::Input<PriorCostFunctionParameters> _priorCostFunctionParameters;
+	pipeline::Input<SegmentationCostFunctionParameters> _segmentationCostFunctionParameters;
 	pipeline::Input<Blocks> _blocks;
 	pipeline::Input<SegmentStore> _segmentStore;
 	pipeline::Input<SliceStore> _sliceStore;
@@ -51,6 +54,7 @@ private:
 	boost::shared_ptr<SegmentReader> _segmentReader;
 	boost::shared_ptr<SliceReader> _sliceReader;
 	boost::shared_ptr<PriorCostFunction> _priorCostFunction;
+	boost::shared_ptr<SegmentationCostFunction> _segmentationCostFunction;
 	boost::shared_ptr<RandomForestHdf5Reader> _randomForestHDF5Reader;
 	boost::shared_ptr<ImageBlockStackReader> _rawImageStackReader;
 	boost::shared_ptr<ImageBlockStackReader> _membraneStackReader;

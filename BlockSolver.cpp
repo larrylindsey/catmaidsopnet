@@ -40,6 +40,7 @@ BlockSolver::BlockSolver() :
 	registerInput(_membraneFactory, "membrane factory");
 	
 	registerOutput(_neurons, "neurons");
+	//registerOutput(_problemAssembler->getOutput("segments"), "segments");
 }
 
 void

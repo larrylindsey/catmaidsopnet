@@ -32,6 +32,11 @@ class BlockSolver : public pipeline::SimpleProcessNode<>
 public:
 	BlockSolver();
 	
+	boost::shared_ptr<ProblemAssembler> getProblemAssembler()
+	{
+		return _problemAssembler;
+	}
+	
 private:
 	void updateOutputs();
 	boost::shared_ptr<Blocks> computeBound();

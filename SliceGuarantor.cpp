@@ -12,7 +12,6 @@ logger::LogChannel sliceguarantorlog("sliceguarantorlog", "[SliceGuarantor] ");
 
 SliceGuarantor::SliceGuarantor()
 {
-	LOG_DEBUG(sliceguarantorlog) << "Registering inputs on this" << std::endl;
 	registerInput(_box, "box");
 	registerInput(_blockManager, "block manager");
 	registerInput(_sliceStore, "store");	

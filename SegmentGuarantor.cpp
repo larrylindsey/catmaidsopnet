@@ -72,25 +72,35 @@ void SegmentGuarantor::guaranteeSegments(
 	
 	for (unsigned int z = zBegin; z < zEnd; ++z)
 	{
-		pipeline::Value<LinearConstraints> extractedConstraints;
-		pipeline::Value<Segments> extractedSegments;
-		
-		boost::shared_ptr<SegmentExtractor> extractor = boost::make_shared<SegmentExtractor>();
-		boost::shared_ptr<Slices> prevSlices = collectSlicesByZ(slices, z);
-		boost::shared_ptr<Slices> nextSlices = collectSlicesByZ(slices, z + 1);
-		
-		extractor->setInput("previous slices", prevSlices);
-		extractor->setInput("next slices", nextSlices);
-		//extractor->setInput("previous linear constraints", emptyConstraints);
-		//extractor->setInput("next linear constraints", emptyConstraints);
-		
-		extractedSegments = extractor->getOutput("segments");
-		
-		LOG_DEBUG(segmentguarantorlog) << "Extractor getOutput has returned" << std::endl;
-		LOG_DEBUG(segmentguarantorlog) << "Got " << extractedSegments->size() << " segments" << std::endl;
-		
-		segments->addAll(extractedSegments);
-		//segmentConstraints->addAll(*extractedConstraints);
+		if (_blockManager->isValidZ(z))
+		{
+			pipeline::Value<LinearConstraints> extractedConstraints;
+			pipeline::Value<Segments> extractedSegments;
+			
+			boost::shared_ptr<SegmentExtractor> extractor = boost::make_shared<SegmentExtractor>();
+			boost::shared_ptr<Slices> prevSlices = collectSlicesByZ(slices, z);
+			
+			
+			extractor->setInput("previous slices", prevSlices);
+			
+			if (_blockManager->isValidZ(z + 1))
+			{
+				boost::shared_ptr<Slices> nextSlices = collectSlicesByZ(slices, z + 1);
+				extractor->setInput("next slices", nextSlices);
+			}
+			
+			//extractor->setInput("previous linear constraints", emptyConstraints);
+			//extractor->setInput("next linear constraints", emptyConstraints);
+			
+			extractedSegments = extractor->getOutput("segments");
+			
+			LOG_DEBUG(segmentguarantorlog) << "Extractor getOutput has returned" << std::endl;
+			LOG_DEBUG(segmentguarantorlog) << "Got " << extractedSegments->size() << " segments"
+				<< std::endl;
+			
+			segments->addAll(extractedSegments);
+			//segmentConstraints->addAll(*extractedConstraints);
+		}
 	}
 	
 	segmentWriter->setInput("segments", segments);

@@ -72,25 +72,25 @@ void SegmentGuarantor::guaranteeSegments(
 	
 	for (unsigned int z = zBegin; z < zEnd; ++z)
 	{
-		if (_blockManager->isValidZ(z))
+		if (_blockManager->isValidZ(z) && _blockManager->isValidZ(z + 1))
 		{
 			pipeline::Value<LinearConstraints> extractedConstraints;
 			pipeline::Value<Segments> extractedSegments;
 			
 			boost::shared_ptr<SegmentExtractor> extractor = boost::make_shared<SegmentExtractor>();
 			boost::shared_ptr<Slices> prevSlices = collectSlicesByZ(slices, z);
-			
+			boost::shared_ptr<Slices> nextSlices = collectSlicesByZ(slices, z + 1);
 			
 			extractor->setInput("previous slices", prevSlices);
+			extractor->setInput("next slices", nextSlices);
 			
-			if (_blockManager->isValidZ(z + 1))
+			if (_blockManager->isUpperBound(z + 1))
 			{
-				boost::shared_ptr<Slices> nextSlices = collectSlicesByZ(slices, z + 1);
-				extractor->setInput("next slices", nextSlices);
+				// Fool the extractor into generating the EndSegments we need at the upper bound of the stack.
+				boost::shared_ptr<LinearConstraints> emptyConstraints = boost::make_shared<LinearConstraints>();
+				//extractor->setInput("previous linear constraints", emptyConstraints);
+				extractor->setInput("next linear constraints", emptyConstraints);
 			}
-			
-			//extractor->setInput("previous linear constraints", emptyConstraints);
-			//extractor->setInput("next linear constraints", emptyConstraints);
 			
 			extractedSegments = extractor->getOutput("segments");
 			
@@ -101,6 +101,11 @@ void SegmentGuarantor::guaranteeSegments(
 			segments->addAll(extractedSegments);
 			//segmentConstraints->addAll(*extractedConstraints);
 		}
+// 		else
+// 		{
+// 			LOG_DEBUG(segmentguarantorlog) << "Not extracting segments between " << z << " and " <<
+// 				(z + 1) << " because one of these sections is invalid" << std::endl;
+// 		}
 	}
 	
 	segmentWriter->setInput("segments", segments);

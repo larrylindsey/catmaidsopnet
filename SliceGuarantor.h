@@ -8,6 +8,7 @@
 #include <sopnet/sopnet/block/Box.h>
 #include <sopnet/sopnet/block/Blocks.h>
 #include <pipeline/all.h>
+#include <imageprocessing/ComponentTrees.h>
 #include <imageprocessing/io/ImageBlockStackReader.h>
 #include <imageprocessing/io/ImageBlockFactory.h>
 #include <imageprocessing/MserParameters.h>
@@ -25,7 +26,8 @@ private:
 	
 	bool guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
 						 const boost::shared_ptr<Blocks>& guaranteeBlocks,
-						 const boost::shared_ptr<Slices>& slices);
+						 const boost::shared_ptr<Slices>& slices,
+						 const boost::shared_ptr<ComponentTrees>& trees);
 	
 	/**
 	 * Helper function that checks whether a Slice can be considered whole or

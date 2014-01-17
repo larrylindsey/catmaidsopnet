@@ -11,7 +11,8 @@ LocalSliceStore::LocalSliceStore()
 	_sliceBlockMap = boost::make_shared<SliceBlockMap>();
 	_blockSliceMap = boost::make_shared<BlockSliceMap>();
 	_idSliceMap = boost::make_shared<IdSliceMap>();
-	_conflictMap = boost::make_shared<ConflictMap>();
+	_parentChildrenMap = boost::make_shared<SliceSlicesMap>();
+	_childParentMap = boost::make_shared<SliceSliceMap>();
 }
 
 
@@ -79,36 +80,10 @@ LocalSliceStore::retrieveSlices(const boost::shared_ptr<Block>& block)
 		LOG_DEBUG(localslicestorelog) << "Found block in block slice map" << std::endl;
 		boost::shared_ptr<Slices> blockSlices = (*_blockSliceMap)[*block];
 		slices->addAll(*blockSlices);
-		LOG_DEBUG(localslicestorelog) << "Adding conflict info for " << slices->size() <<
-			" slices" << std::endl;
-		foreach (boost::shared_ptr<Slice> slice, *slices)
-		{
-			addConflict(slice, slices);
-		}
 	}
 
 	return slices;
 }
-
-void
-LocalSliceStore::addConflict(const boost::shared_ptr< Slice >& slice,
-							 const boost::shared_ptr< Slices >& slices)
-{
-	if (_conflictMap->count(*slice))
-	{
-		boost::shared_ptr<std::vector<unsigned int> > conflict = 
-			boost::make_shared<std::vector<unsigned int> >();
-			
-		boost::shared_ptr<Slices> conflictSlices = (*_conflictMap)[*slice];
-		foreach (boost::shared_ptr<Slice> conflictSlice, *conflictSlices)
-		{
-			conflict->push_back(conflictSlice->getId());
-		}
-		slices->setConflicts(slice->getId(), *conflict);
-	}
-}
-
-
 
 void
 LocalSliceStore::mapBlockToSlice(const boost::shared_ptr< Block >& block, const boost::shared_ptr< Slice >& slice)
@@ -169,9 +144,6 @@ LocalSliceStore::mapSliceToBlock(const boost::shared_ptr< Slice >& slice, const 
 	blocks->add(block);
 }
 
-
-
-
 void
 LocalSliceStore::associate(const boost::shared_ptr< Slice >& sliceIn,
 							const boost::shared_ptr< Block >& block)
@@ -196,126 +168,6 @@ LocalSliceStore::associate(const boost::shared_ptr< Slice >& sliceIn,
 	}
 }
 
-
-boost::shared_ptr<LinearConstraints>
-LocalSliceStore::retrieveConstraints(const boost::shared_ptr<Slices>& slices)
-{
-	boost::shared_ptr<LinearConstraints> constraints = boost::make_shared<LinearConstraints>();
-	
-	LOG_DEBUG(localslicestorelog) << "Retrieving constraints for " << slices->size() <<
-		" slices" << std::endl;
-	
-	foreach (boost::shared_ptr<SliceStoreLinearConstraint> constraint, _constraints)
-	{
-		if (constraint->associated(slices))
-		{
-			constraints->add(*constraint->getConstraint(slices));
-		}
-	}
-	
-	return constraints;
-}
-
-
-void
-LocalSliceStore::storeConstraints(const boost::shared_ptr<LinearConstraints>& constraints)
-{
-	foreach (LinearConstraint& constraint, *constraints)
-	{
-		boost::shared_ptr<SliceStoreLinearConstraint> storeConstraint =
-			boost::make_shared<SliceStoreLinearConstraint>(constraint, _idSliceMap);
-		_constraints.push_back(storeConstraint);
-	}
-}
-
-void
-LocalSliceStore::storeConflicts(const boost::shared_ptr<Slices>& slices)
-{
-	
-	// Conflict in Slices is stored as a set of id's. 
-	//
-	// We will have multiple Slice objects with the same data and different id's, since
-	// we're extracting across Block borders. Here, we store conflict information in a 
-	// way that is tied to the Slice == operator and hashValue, which are id-agnostic.
-	
-	foreach (boost::shared_ptr<Slice> slice, *slices)
-	{
-		// If slice is already in the slice master list...
-		if (_sliceMasterList.count(*slice))
-		{
-			boost::shared_ptr<Slices> conflictSlices;
-			
-			if (_conflictMap->count(*slice))
-			{
-				// If the conflict map already has the slice, retrieve the associated Slices.
-				conflictSlices = (*_conflictMap)[*slice];
-			}
-			else
-			{
-				// Otherwise, create the Slices and push it into the conflict map.
-				conflictSlices = boost::make_shared<Slices>();
-				(*_conflictMap)[*slice] = conflictSlices;
-			}
-
-			// Grab the id. If the id corresponds to a Slice in the map, add it to conflicts.
-			foreach (unsigned int id, slices->getConflicts(slice->getId()))
-			{
-				if (_idSliceMap->count(id))
-				{
-					conflictSlices->add((*_idSliceMap)[id]);
-				}
-			}
-		}
-	}
-}
-
-LocalSliceStore::SliceStoreLinearConstraint::SliceStoreLinearConstraint(
-	const LinearConstraint& constraint,
-	const boost::shared_ptr<IdSliceMap>& idSliceMap) : _relation(constraint.getRelation()),
-		_value(constraint.getValue())
-{
-	std::map<unsigned int, double>::const_iterator iter;
-	for (iter = constraint.getCoefficients().begin();
-		 iter != constraint.getCoefficients().end(); ++iter)
-	{
-		if (idSliceMap->count(iter->first))
-		{
-			boost::shared_ptr<Slice> slice = (*idSliceMap)[iter->first];
-			_coefs[*slice] = iter->second;
-		}
-	}
-}
-
-bool
-LocalSliceStore::SliceStoreLinearConstraint::associated(const boost::shared_ptr< Slices >& slices)
-{
-	foreach (boost::shared_ptr<Slice> slice, *slices)
-	{
-		if (_coefs.count(*slice))
-		{
-			return true;
-		}
-	}
-	return false;
-}
-
-boost::shared_ptr<LinearConstraint>
-LocalSliceStore::SliceStoreLinearConstraint::getConstraint(
-	const boost::shared_ptr< Slices >& slices)
-{
-	boost::shared_ptr<LinearConstraint> constraint = boost::make_shared<LinearConstraint>();
-	constraint->setRelation(_relation);
-	constraint->setValue(_value);
-	foreach (boost::shared_ptr<Slice> slice, *slices)
-	{
-		if (_coefs.count(*slice))
-		{
-			constraint->setCoefficient(slice->getId(), _coefs[*slice]);
-		}
-	}
-	return constraint;
-}
-
 boost::shared_ptr<Slice>
 LocalSliceStore::equivalentSlice(const boost::shared_ptr<Slice>& slice)
 {
@@ -331,3 +183,42 @@ LocalSliceStore::equivalentSlice(const boost::shared_ptr<Slice>& slice)
 	}
 }
 
+void
+LocalSliceStore::setParent(const boost::shared_ptr<Slice>& childSlice,
+						   const boost::shared_ptr<Slice>& parentSlice)
+{
+	if (! _parentChildrenMap->count(*parentSlice))
+	{
+		(*_parentChildrenMap)[*parentSlice] = boost::make_shared<Slices>();
+	}
+	
+	(*_parentChildrenMap)[*parentSlice]->add(childSlice);
+	(*_childParentMap)[*childSlice] = parentSlice;
+}
+
+boost::shared_ptr<Slices>
+LocalSliceStore::getChildren(const boost::shared_ptr<Slice>& parentSlice)
+{
+	if (_parentChildrenMap->count(*parentSlice))
+	{
+		return (*_parentChildrenMap)[*parentSlice];
+	}
+	else
+	{
+		boost::shared_ptr<Slices> emptySlices = boost::make_shared<Slices>();
+		return emptySlices;
+	}
+}
+
+boost::shared_ptr<Slice>
+LocalSliceStore::getParent(const boost::shared_ptr< Slice >& childSlice)
+{
+	if (_childParentMap->count(*childSlice))
+	{
+		return (*_childParentMap)[*childSlice];
+	}
+	else
+	{
+		return boost::shared_ptr<Slice>();
+	}
+}

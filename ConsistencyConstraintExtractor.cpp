@@ -1,8 +1,9 @@
 #include "ConsistencyConstraintExtractor.h"
 
 #include <boost/make_shared.hpp>
-
 #include <boost/unordered_set.hpp>
+
+#include <deque>
 
 #include <sopnet/inference/LinearConstraint.h>
 #include <sopnet/slices/Slice.h>
@@ -20,6 +21,7 @@ ConsistencyConstraintExtractor::ConsistencyConstraintExtractor()
 	registerInput(_slices, "slices");
 	registerInput(_segments, "segments");
 	registerInput(_forceExplanation, "force explanation", pipeline::Optional);
+	registerInput(_trees, "component trees");
 	registerOutput(_linearConstraints, "linear constraints");
 }
 
@@ -64,31 +66,20 @@ ConsistencyConstraintExtractor::collectSliceConstraints(unsigned int section,
 {
 	boost::shared_ptr<ComponentTreeConverter> converter =
 			boost::make_shared<ComponentTreeConverter>(section);
-	std::vector<boost::shared_ptr<ComponentTree> > trees = createComponentTrees(slices);
+	boost::shared_ptr<ComponentTree> tree = _trees->getTree(section);
 	boost::shared_ptr<LinearConstraints> sliceConstraints = boost::make_shared<LinearConstraints>();
+	std::deque<unsigned int> path;
+	boost::unordered_map<ConnectedComponent, boost::shared_ptr<Slice> > componentSliceMap;
 	
-	boost::unordered_map<unsigned int, unsigned int> idMap;
-	
-	LOG_DEBUG(consistencyconstraintextractorlog) << "Collecting slice constraints: created " << trees.size()
-		<< " component trees over " << slices->size() << " slices" << std::endl;
-	
-	foreach (boost::shared_ptr<ComponentTree> tree, trees)
+	foreach (boost::shared_ptr<Slice> slice, *slices)
 	{
-		pipeline::Value<LinearConstraints> treeConstraints;
-		pipeline::Value<Slices> treeSlices;
-
-		converter->setInput("component tree", tree);
-		treeSlices = converter->getOutput("slices");
-		treeConstraints = converter->getOutput("linear constraints");
-
-		foreach(const boost::shared_ptr<Slice> treeSlice, *treeSlices)
-		{
-			unsigned int newId = treeSlice->getId();
-			unsigned int origId = _sliceSet.find(*treeSlice)->getId();
-			idMap[newId] = origId;
-		}
-		
-		sliceConstraints->addAll(*mapSliceIds(treeConstraints, idMap));
+		componentSliceMap[*(slice->getComponent())] = slice;
+	}
+	
+	foreach (boost::shared_ptr<ComponentTree::Node> node, tree->getRoot()->getChildren())
+	{
+		path.clear();
+		addConstraints(node, sliceConstraints, path, componentSliceMap);
 	}
 	
 	LOG_DEBUG(consistencyconstraintextractorlog) << "Collected " << sliceConstraints->size() <<
@@ -96,6 +87,45 @@ ConsistencyConstraintExtractor::collectSliceConstraints(unsigned int section,
 	
 	return sliceConstraints;
 }
+
+void
+ConsistencyConstraintExtractor::addConstraints(const boost::shared_ptr<ComponentTree::Node>& node,
+								const boost::shared_ptr<LinearConstraints>& constraints,
+								std::deque<unsigned int>& path,
+								boost::unordered_map<ConnectedComponent, boost::shared_ptr<Slice> >&
+																	componentSliceMap)
+{
+	unsigned int id = componentSliceMap[*node->getComponent()]->getId();
+	path.push_back(id);
+	
+	if (node->getChildren().size() == 0)
+	{
+		// Cribbed from ComponentTreeConverter::addConstraints
+		LinearConstraint constraint;
+		foreach (unsigned int id, path)
+		{
+			constraint.setCoefficient(id, 1);
+		}
+		constraint.setValue(1);
+		constraints->add(constraint);
+	}
+	else
+	{
+		foreach (boost::shared_ptr<Node> childNode, node->getChildren())
+		{
+			addConstraints(childNode, constraints, path, componentSliceMap);
+		}
+	}
+	
+	if (*(path.end() - 1) != id)
+	{
+		LOG_ERROR(consistencyconstraintextractorlog) << "ID at end: " << *(path.end() - 1) <<
+			" this id: " << id << std::endl;
+	}
+	
+	path.pop_back();
+}
+
 
 boost::shared_ptr<LinearConstraints>
 ConsistencyConstraintExtractor::assembleSegmentConstraints(

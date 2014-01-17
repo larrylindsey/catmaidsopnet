@@ -69,6 +69,7 @@ BlockSolver::updateOutputs()
 	_constraintExtractor->setInput("slices", _sliceReader->getOutput("slices"));
 	_constraintExtractor->setInput("segments", _segmentReader->getOutput("segments"));
 	_constraintExtractor->setInput("force explanation", _forceExplanation);
+	_constraintExtractor->setInput("component trees", _sliceReader->getOutput("component trees"));
 	
 	_problemAssembler->addInput("segments", _segmentReader->getOutput("segments"));
 	_problemAssembler->addInput("linear constraints",

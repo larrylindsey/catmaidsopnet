@@ -68,24 +68,17 @@ public:
 		const boost::shared_ptr<Slice>& slice) = 0;
 	
 	/**
-	 * Store constraints.
-	 * @param constraints - the LinearConstraints to store.
+	 * Store a parent-child relationship between two slices.
 	 */
-	virtual void storeConstraints(const boost::shared_ptr<LinearConstraints>& constraints) = 0;
-	
-	/**
-	 * Retrieve all constraints for a given Slices.
-	 * @param slices - the Slices for which constraints have been requested.
-	 * @return a shared_ptr ot a LinearConstraints containing the requested constraints.
-	 */
-	virtual boost::shared_ptr<LinearConstraints> retrieveConstraints(
-		const boost::shared_ptr<Slices>& slices) = 0;
+	virtual void setParent(const boost::shared_ptr<Slice>& childSlice,
+						   const boost::shared_ptr<Slice>& parentSlice) = 0;
 
 	/**
-	 * Stores the conflict information from a given Slices object.
-	 * @param slices - the Slices from which conflict information is to be stored.
+	 * Retrieve the children of the given Slice.
 	 */
-	virtual void storeConflicts(const boost::shared_ptr<Slices>& slices) = 0;
+	virtual boost::shared_ptr<Slices> getChildren(const boost::shared_ptr<Slice>& parentSlice) = 0;
+	
+	virtual boost::shared_ptr<Slice> getParent(const boost::shared_ptr<Slice>& childSlice) = 0;
 };
 
 #endif //SLICE_STORE_H__

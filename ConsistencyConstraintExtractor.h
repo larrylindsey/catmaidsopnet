@@ -9,6 +9,7 @@
 #include <sopnet/segments/Segments.h>
 #include <sopnet/inference/LinearConstraints.h>
 #include <imageprocessing/ComponentTree.h>
+#include <imageprocessing/ComponentTrees.h>
 
 class ConsistencyConstraintExtractor : public pipeline::SimpleProcessNode<>
 {
@@ -36,12 +37,19 @@ private:
 	boost::shared_ptr<LinearConstraints> assembleSegmentConstraints(
 		const boost::shared_ptr<LinearConstraints>& sliceConstraints);
 	
+	void addConstraints(const boost::shared_ptr<ComponentTree::Node>& node,
+						const boost::shared_ptr<LinearConstraints>& constraints,
+						std::deque<unsigned int>& path,
+						boost::unordered_map<ConnectedComponent, boost::shared_ptr<Slice> >&
+																				componentSliceMap);
+	
 	static bool compareConnectedComponents(const boost::shared_ptr<ConnectedComponent>& comp1,
 										   const boost::shared_ptr<ConnectedComponent>& comp2);
 
 	pipeline::Input<Slices> _slices;
 	pipeline::Input<Segments> _segments;
 	pipeline::Input<bool> _forceExplanation;
+	pipeline::Input<ComponentTrees> _trees;
 	pipeline::Output<LinearConstraints> _linearConstraints;
 	
 	boost::unordered_set<Slice> _sliceSet;

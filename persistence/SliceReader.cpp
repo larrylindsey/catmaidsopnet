@@ -1,6 +1,6 @@
 #include "SliceReader.h"
 #include <sopnet/block/Block.h>
-#include <boost/unordered_set.hpp>
+
 
 #include <util/Logger.h>
 logger::LogChannel slicereaderlog("slicereaderlog", "[SliceReader] ");
@@ -12,7 +12,7 @@ SliceReader::SliceReader()
 	registerInput(_store, "store");
 	registerInput(_blockManager, "block manager");
 	registerOutput(_slices, "slices");
-	registerOutput(_constraints, "linear constraints");
+	registerOutput(_trees, "component trees");
 	
 	_box.registerBackwardCallback(&SliceReader::onBoxSet, this);
 	_blocks.registerBackwardCallback(&SliceReader::onBlocksSet, this);
@@ -36,23 +36,23 @@ void SliceReader::updateOutputs()
 	boost::unordered_set<Slice> sliceSet;
 	boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
 	boost::shared_ptr<Blocks> blocks;
+	boost::shared_ptr<ComponentTrees> trees = boost::make_shared<ComponentTrees>();
 
 	if (!_blocks && !_box)
 	{
 		LOG_ERROR(slicereaderlog) << "Need either box or blocks, neither was set" << std::endl;
-		boost::shared_ptr<LinearConstraints> constraints = boost::make_shared<LinearConstraints>();
 		*_slices = *slices;
-		*_constraints = *constraints;
+		*_trees = *trees;
 		return;
 	}
 	else if (_sourceIsBox)
 	{
-		LOG_ERROR(slicereaderlog) << "Blocks derived from box input" << std::endl;
+		LOG_DEBUG(slicereaderlog) << "Blocks derived from box input" << std::endl;
 		blocks = _blockManager->blocksInBox(_box);
 	}
 	else
 	{
-		LOG_ERROR(slicereaderlog) << "Using blocks input directly" << std::endl;
+		LOG_DEBUG(slicereaderlog) << "Using blocks input directly" << std::endl;
 		blocks = _blocks;
 	}
 	
@@ -67,9 +67,76 @@ void SliceReader::updateOutputs()
 				sliceSet.insert(*slice);
 			}
 		}
-		slices->addConflictsFromSlices(*blockSlices);
+		
 	}
 	
+	LOG_DEBUG(slicereaderlog) << "Inserting slices into trees" << std::endl;
+	insertSlicesIntoTrees(slices, trees, sliceSet);
+	LOG_DEBUG(slicereaderlog) << "Done inserting slices into trees" << std::endl;
+	
 	*_slices = *slices;
-	*_constraints = *(_store->retrieveConstraints(slices));
+	*_trees = *trees;
 }
+
+void
+SliceReader::insertSlicesIntoTrees(const boost::shared_ptr<Slices>& slices,
+								 const boost::shared_ptr<ComponentTrees>& trees,
+								 const boost::unordered_set<Slice>& sliceSet)
+{
+	std::map<unsigned int, boost::shared_ptr<Slices> > rootSlices;
+	std::map<unsigned int, boost::shared_ptr<Slices> >::iterator it;
+	
+	LOG_DEBUG(slicereaderlog) << "Finding root slices" << std::endl;
+	
+	foreach (boost::shared_ptr<Slice> slice, *slices)
+	{
+		boost::shared_ptr<Slice> parentSlice = _store->getParent(slice);
+		if (!parentSlice || sliceSet.count(*parentSlice))
+		{
+			if (!rootSlices.count(slice->getSection()))
+			{
+				rootSlices[slice->getSection()] = boost::make_shared<Slices>();
+			}
+			rootSlices[slice->getSection()]->add(slice);
+		}
+	}
+	
+	LOG_DEBUG(slicereaderlog) << "Done assigning root slices, re-creating trees" << std::endl;
+	
+	for (it = rootSlices.begin(); it != rootSlices.end(); ++it)
+	{
+		
+		boost::shared_ptr<ComponentTree::Node> fakeNode =
+			boost::make_shared<ComponentTree::Node>(boost::make_shared<ConnectedComponent>());
+		foreach (boost::shared_ptr<Slice> slice, *(it->second))
+		{
+			boost::shared_ptr<ComponentTree::Node> rootNode = 
+				boost::make_shared<ComponentTree::Node>(slice->getComponent());
+			addNode(rootNode, slice, sliceSet);
+			rootNode->setParent(fakeNode);
+		}	
+		
+		(*trees)[it->first]->setRoot(fakeNode);
+	}
+	
+	LOG_DEBUG(slicereaderlog) << "Done assigning root slices, re-creating trees" << std::endl;
+}
+
+void
+SliceReader::addNode(const boost::shared_ptr<ComponentTree::Node>& node,
+					 const boost::shared_ptr<Slice>& slice,
+					 const boost::unordered_set<Slice>& sliceSet)
+{
+	foreach (boost::shared_ptr<Slice> childSlice, *(_store->getChildren(slice)))
+	{
+		if (sliceSet.count(*childSlice))
+		{
+			boost::shared_ptr<ComponentTree::Node> childNode = 
+				boost::make_shared<ComponentTree::Node>(childSlice->getComponent());
+			childNode->setParent(node);
+			addNode(childNode, childSlice, sliceSet);
+		}
+	}
+}
+
+

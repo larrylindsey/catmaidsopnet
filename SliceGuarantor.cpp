@@ -62,9 +62,9 @@ SliceGuarantor::updateOutputs()
 		// Slice and LinearConstraints persistence.
 		boost::shared_ptr<SliceWriter> sliceWriter = boost::make_shared<SliceWriter>();
 
-		// Slices and LinearConstraints extracted from the image underlying the requested area.
+		// Slices and ComponentTrees extracted from the image underlying the requested area.
 		boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
-		boost::shared_ptr<LinearConstraints> constraints = boost::make_shared<LinearConstraints>();
+		boost::shared_ptr<ComponentTrees> trees = boost::make_shared<ComponentTrees>();
 
 		// Assume that some Slice's will overlap the guarantee box's boundary, so dilate.
 		extractBlocks->dilateXY();
@@ -81,11 +81,11 @@ SliceGuarantor::updateOutputs()
 		while (!guaranteed && extractBlocks->size().x * extractBlocks->size().y < *_maximumArea)
 		{
 			slices->clear();
-			constraints->clear();
+			trees->clear();
 			
 			LOG_DEBUG(sliceguarantorlog) << "Extracting from box at " << extractBlocks->location()
 				<< " with size " << extractBlocks->size() << std::endl;
-			guaranteed = guaranteeSlices(extractBlocks, guaranteeBlocks, slices);
+			guaranteed = guaranteeSlices(extractBlocks, guaranteeBlocks, slices, trees);
 			if (guaranteed)
 			{
 				LOG_DEBUG(sliceguarantorlog) << "success!" << std::endl;
@@ -116,6 +116,7 @@ SliceGuarantor::updateOutputs()
 			boost::shared_ptr<Slices> blockSlices = boost::make_shared<Slices>();
 			
 			// Collect only the slices that overlap the guarantee box.
+			
 			foreach(boost::shared_ptr<Slice> slice, *slices)
 			{
 				if (block->overlaps(slice->getComponent()))
@@ -124,15 +125,8 @@ SliceGuarantor::updateOutputs()
 				}
 			}
 			
-			// Copy conflict info.
-			blockSlices->addConflictsFromSlices(*slices);
-			
-			LOG_ALL(sliceguarantorlog) << "Setting slice and Block inputs on SliceStore" <<
-				std::endl;
-			
-			// SliceWriter handles the restriction of constraints to the slices that are being pushed.
 			sliceWriter->setInput("slices", blockSlices);
-			sliceWriter->setInput("linear constraints", constraints);
+			sliceWriter->setInput("component trees", trees);
 			sliceWriter->setInput("block", block);
 
 			// Force sliceWriter to run updateOutputs
@@ -154,7 +148,8 @@ SliceGuarantor::updateOutputs()
 bool
 SliceGuarantor::guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
 								const boost::shared_ptr<Blocks>& guaranteeBlocks,
-								const boost::shared_ptr<Slices>& slices)
+								const boost::shared_ptr<Slices>& slices,
+								const boost::shared_ptr<ComponentTrees>& trees)
 {
 	LOG_DEBUG(sliceguarantorlog) << "Setting up mini pipeline" << std::endl;
 
@@ -178,6 +173,7 @@ SliceGuarantor::guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
 			boost::make_shared<SliceExtractor<unsigned char> >(z);
 		boost::shared_ptr<Slices> guaranteedSlices;
 		pipeline::Value<Slices> valueSlices;
+		pipeline::Value<ComponentTree> valueTree;
 
 		sliceExtractor->setInput("membrane", sliceImageExtractor->getOutput(i));
 		sliceExtractor->setInput("force explanation", _forceExplanation);
@@ -188,6 +184,7 @@ SliceGuarantor::guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
 		}
 		
 		valueSlices = sliceExtractor->getOutput("slices");
+		valueTree = sliceExtractor->getOutput("component tree");
 		
 		LOG_DEBUG(sliceguarantorlog) << "Extracted " << valueSlices->size() << " slices" << std::endl;
 		
@@ -207,9 +204,9 @@ SliceGuarantor::guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
 				slices->add(slice);
 			}
 		}
-		slices->addConflictsFromSlices(*valueSlices);
+		
+		trees->setTree(z, valueTree);
 	}
-	
 	
 	LOG_DEBUG(sliceguarantorlog) << "Checking " << slices->size() << " slices for wholeness" <<
 		std::endl;

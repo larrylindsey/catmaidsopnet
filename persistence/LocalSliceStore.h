@@ -16,9 +16,9 @@ class LocalSliceStore : public SliceStore
 {
 	typedef boost::unordered_map<Slice, boost::shared_ptr<Blocks> > SliceBlockMap;
 	typedef boost::unordered_map<Block, boost::shared_ptr<Slices> > BlockSliceMap;
-	typedef boost::unordered_map<Slice, boost::shared_ptr<Slices> > ConflictMap;
 	typedef boost::unordered_map<unsigned int, boost::shared_ptr<Slice> > IdSliceMap;
-	
+	typedef boost::unordered_map<Slice, boost::shared_ptr<Slices> > SliceSlicesMap;
+	typedef boost::unordered_map<Slice, boost::shared_ptr<Slice> > SliceSliceMap;
 
 public:
 	LocalSliceStore();
@@ -34,44 +34,27 @@ public:
 
 	boost::shared_ptr<Blocks> getAssociatedBlocks(const boost::shared_ptr<Slice>& slice);
 	
-    boost::shared_ptr<LinearConstraints> retrieveConstraints(
-		const boost::shared_ptr<Slices>& slices);
+	void setParent(const boost::shared_ptr<Slice>& childSlice,
+				   const boost::shared_ptr<Slice>& parentSlice);
 	
-	void storeConstraints(const boost::shared_ptr<LinearConstraints>& constraints);
-	
-	void storeConflicts(const boost::shared_ptr<Slices>& slices);
+	boost::shared_ptr<Slices> getChildren(const boost::shared_ptr<Slice>& parentSlice);
 
+	boost::shared_ptr<Slice> getParent(const boost::shared_ptr<Slice>& childSlice);
 
 private:
-	class SliceStoreLinearConstraint
-	{
-	public:
-		SliceStoreLinearConstraint(const LinearConstraint& constraint,
-				const boost::shared_ptr<IdSliceMap>& idSliceMap);
-		
-		bool associated(const boost::shared_ptr<Slices>& slices);
-		
-		boost::shared_ptr<LinearConstraint> getConstraint(const boost::shared_ptr<Slices>& slices);
-	private:
-		boost::unordered_map<Slice, double> _coefs;
-		double _value;
-		Relation _relation;
-	};
 	
 	void mapSliceToBlock(const boost::shared_ptr<Slice>& slice,
 						 const boost::shared_ptr<Block>& block);
 	void mapBlockToSlice(const boost::shared_ptr<Block>& block,
 						 const boost::shared_ptr<Slice>& slice);
-	void addConflict(const boost::shared_ptr<Slice>& slice,
-					 const boost::shared_ptr<Slices>& slices);
 	boost::shared_ptr<Slice> equivalentSlice(const boost::shared_ptr<Slice>& slice);
 	
 	boost::shared_ptr<SliceBlockMap> _sliceBlockMap;
 	boost::shared_ptr<BlockSliceMap> _blockSliceMap;
 	boost::shared_ptr<IdSliceMap> _idSliceMap;
-	boost::shared_ptr<ConflictMap> _conflictMap;
+	boost::shared_ptr<SliceSlicesMap> _parentChildrenMap;
 	boost::unordered_set<Slice> _sliceMasterList;
-	std::vector<boost::shared_ptr<SliceStoreLinearConstraint> > _constraints;
+	boost::shared_ptr<SliceSliceMap> _childParentMap;
 	
 };
 

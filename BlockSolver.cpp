@@ -38,6 +38,7 @@ BlockSolver::BlockSolver() :
 	registerInput(_sliceStore, "slice store");
 	registerInput(_rawImageFactory, "raw image factory");
 	registerInput(_membraneFactory, "membrane factory");
+	registerInput(_forceExplanation, "force explanation");
 	
 	registerOutput(_neurons, "neurons");
 	//registerOutput(_problemAssembler->getOutput("segments"), "segments");
@@ -67,6 +68,7 @@ BlockSolver::updateOutputs()
 	
 	_constraintExtractor->setInput("slices", _sliceReader->getOutput("slices"));
 	_constraintExtractor->setInput("segments", _segmentReader->getOutput("segments"));
+	_constraintExtractor->setInput("force explanation", _forceExplanation);
 	
 	_problemAssembler->addInput("segments", _segmentReader->getOutput("segments"));
 	_problemAssembler->addInput("linear constraints",

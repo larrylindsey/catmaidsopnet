@@ -41,6 +41,7 @@ private:
 
 	pipeline::Input<Slices> _slices;
 	pipeline::Input<Segments> _segments;
+	pipeline::Input<bool> _forceExplanation;
 	pipeline::Output<LinearConstraints> _linearConstraints;
 	
 	boost::unordered_set<Slice> _sliceSet;

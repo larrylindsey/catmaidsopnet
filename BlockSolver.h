@@ -48,6 +48,7 @@ private:
 	pipeline::Input<SliceStore> _sliceStore;
 	pipeline::Input<ImageBlockFactory> _rawImageFactory;
 	pipeline::Input<ImageBlockFactory> _membraneFactory;
+	pipeline::Input<bool> _forceExplanation;
 	
 	pipeline::Output<SegmentTrees> _neurons;
 	

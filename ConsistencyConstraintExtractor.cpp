@@ -19,6 +19,7 @@ ConsistencyConstraintExtractor::ConsistencyConstraintExtractor()
 {
 	registerInput(_slices, "slices");
 	registerInput(_segments, "segments");
+	registerInput(_forceExplanation, "force explanation", pipeline::Optional);
 	registerOutput(_linearConstraints, "linear constraints");
 }
 
@@ -122,7 +123,14 @@ ConsistencyConstraintExtractor::assembleSegmentConstraints(
 				constraint.setCoefficient(segmentId, 1.0);
 		}
 
-		constraint.setRelation(sliceConstraint.getRelation());
+		if (_forceExplanation && ! *_forceExplanation)
+		{
+			constraint.setRelation(LessEqual);
+		}
+		else
+		{
+			constraint.setRelation(Equal);
+		}
 
 		constraint.setValue(1);
 		

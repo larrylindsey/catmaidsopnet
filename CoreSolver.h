@@ -1,5 +1,5 @@
-#ifndef BLOCK_SOLVER_H__
-#define BLOCK_SOLVER_H__
+#ifndef CORE_SOLVER_H__
+#define CORE_SOLVER_H__
 
 #include <boost/shared_ptr.hpp>
 #include <pipeline/all.h>
@@ -27,10 +27,10 @@
 #include <catmaidsopnet/persistence/SegmentReader.h>
 #include <catmaidsopnet/persistence/SliceReader.h>
 
-class BlockSolver : public pipeline::SimpleProcessNode<>
+class CoreSolver : public pipeline::SimpleProcessNode<>
 {
 public:
-	BlockSolver();
+	CoreSolver();
 	
 	boost::shared_ptr<ProblemAssembler> getProblemAssembler()
 	{
@@ -70,4 +70,4 @@ private:
 
 };
 
-#endif //BLOCK_SOLVER_H__
+#endif //CORE_SOLVER_H__

@@ -1,4 +1,4 @@
-#include "BlockSolver.h"
+#include "CoreSolver.h"
 #include <boost/make_shared.hpp>
 #include <util/ProgramOptions.h>
 #include <pipeline/Value.h>
@@ -10,7 +10,7 @@ util::ProgramOption optionRandomForestFileBlock(
 		util::_description_text = "Path to an HDF5 file containing the segment random forest.",
 		util::_default_value    = "segment_rf.hdf");
 
-BlockSolver::BlockSolver() :
+CoreSolver::CoreSolver() :
 	_problemAssembler(boost::make_shared<ProblemAssembler>()),
 	_constraintExtractor(boost::make_shared<ConsistencyConstraintExtractor>()),
 	_randomForestHDF5Reader(
@@ -45,7 +45,7 @@ BlockSolver::BlockSolver() :
 }
 
 void
-BlockSolver::updateOutputs()
+CoreSolver::updateOutputs()
 {
 	boost::shared_ptr<LinearSolverParameters> binarySolverParameters = 
 		boost::make_shared<LinearSolverParameters>(Binary);
@@ -131,7 +131,7 @@ BlockSolver::updateOutputs()
 }
 
 boost::shared_ptr<Blocks>
-BlockSolver::computeBound()
+CoreSolver::computeBound()
 {
 	pipeline::Value<Segments> segments = _problemAssembler->getOutput("segments");
 	if (segments->size() > 0)

@@ -247,37 +247,31 @@ SliceGuarantor::checkWhole(const boost::shared_ptr<Slice>& slice,
 	
 	point3<unsigned int> blockLocation = extractBlocks->location();
 	point3<unsigned int> blockSize = extractBlocks->size();
-	int borderX = 0, borderY = 0;
 	
 	if (sliceBound.minX <= blockLocation.x)
 	{
-		borderX = -1;
+		Blocks expandBlocks = Blocks(*extractBlocks);
+		expandBlocks.expand(util::ptrTo(-1, 0, 0));
+		nbdBlocks->addAll(expandBlocks.getBlocks());
 	}
 	else if (sliceBound.maxX >= blockLocation.x + blockSize.x)
 	{
-		borderX = 1;
+		Blocks expandBlocks = Blocks(*extractBlocks);
+		expandBlocks.expand(util::ptrTo(1, 0, 0));
+		nbdBlocks->addAll(expandBlocks.getBlocks());
 	}
 	
 	if (sliceBound.minY <= blockLocation.y)
 	{
-		borderY = -1;
+		Blocks expandBlocks = Blocks(*extractBlocks);
+		expandBlocks.expand(util::ptrTo(0, -1, 0));
+		nbdBlocks->addAll(expandBlocks.getBlocks());
 	}
 	else if (sliceBound.maxY >= blockLocation.y + blockSize.y)
 	{
-		borderY = 1;
-	}
-
-	if (borderX)
-	{
 		Blocks expandBlocks = Blocks(*extractBlocks);
-		expandBlocks.expand(util::ptrTo(borderX, 0, 0));
+		expandBlocks.expand(util::ptrTo(0, 1, 0));
 		nbdBlocks->addAll(expandBlocks.getBlocks());
 	}
 
-	if (borderY)
-	{
-		Blocks expandBlocks = Blocks(*extractBlocks);
-		expandBlocks.expand(util::ptrTo(0, borderY, 0));
-		nbdBlocks->addAll(expandBlocks.getBlocks());
-	}
 }

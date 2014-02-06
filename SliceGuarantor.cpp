@@ -64,7 +64,7 @@ SliceGuarantor::updateOutputs()
 
 		// Slices and LinearConstraints extracted from the image underlying the requested area.
 		boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
-		boost::shared_ptr<LinearConstraints> constraints = boost::make_shared<LinearConstraints>();
+		//boost::shared_ptr<LinearConstraints> constraints = boost::make_shared<LinearConstraints>();
 
 		// Assume that some Slice's will overlap the guarantee box's boundary, so dilate.
 		extractBlocks->dilateXY();
@@ -81,7 +81,7 @@ SliceGuarantor::updateOutputs()
 		while (!guaranteed && extractBlocks->size().x * extractBlocks->size().y < *_maximumArea)
 		{
 			slices->clear();
-			constraints->clear();
+			//constraints->clear();
 			
 			LOG_DEBUG(sliceguarantorlog) << "Extracting from box at " << extractBlocks->location()
 				<< " with size " << extractBlocks->size() << std::endl;
@@ -132,7 +132,7 @@ SliceGuarantor::updateOutputs()
 			
 			// SliceWriter handles the restriction of constraints to the slices that are being pushed.
 			sliceWriter->setInput("slices", blockSlices);
-			sliceWriter->setInput("linear constraints", constraints);
+			//sliceWriter->setInput("linear constraints", constraints);
 			sliceWriter->setInput("block", block);
 
 			// Force sliceWriter to run updateOutputs
@@ -241,43 +241,49 @@ SliceGuarantor::checkWhole(const boost::shared_ptr<Slice>& slice,
 						   const boost::shared_ptr<Blocks>& extractBlocks,
 						   const boost::shared_ptr<Blocks>& nbdBlocks) const
 {
+	Blocks expandBlocks = Blocks(*extractBlocks);
+	
 	//TODO: figure out the best way to maintain a map from a slice to its bordering Blocks.
 	// Check whether the slice's bounding box touches the Block boundary
 	util::rect<int> sliceBound = slice->getComponent()->getBoundingBox();
 	
 	point3<unsigned int> blockLocation = extractBlocks->location();
 	point3<unsigned int> blockSize = extractBlocks->size();
-	int borderX = 0, borderY = 0;
 	
 	if (sliceBound.minX <= blockLocation.x)
 	{
-		borderX = -1;
+		LOG_ALL(sliceguarantorlog) << "Expand -1  0" << std::endl;
+		expandBlocks.expand(util::ptrTo(-1, 0, 0));
 	}
 	else if (sliceBound.maxX >= blockLocation.x + blockSize.x)
 	{
-		borderX = 1;
+		LOG_ALL(sliceguarantorlog) << "Expand  1  0" << std::endl;;
+		expandBlocks.expand(util::ptrTo(1, 0, 0));
 	}
 	
 	if (sliceBound.minY <= blockLocation.y)
 	{
-		borderY = -1;
+		LOG_ALL(sliceguarantorlog) << "Expand  0 -1" << std::endl;
+		expandBlocks.expand(util::ptrTo(0, -1, 0));
 	}
 	else if (sliceBound.maxY >= blockLocation.y + blockSize.y)
 	{
-		borderY = 1;
+		LOG_ALL(sliceguarantorlog) << "Expand  0  1" << std::endl;
+		expandBlocks.expand(util::ptrTo(0, 1, 0));
 	}
-
-	if (borderX)
+	
+	point3<unsigned int> beforeSize = point3<unsigned int>(nbdBlocks->size());
+	nbdBlocks->addAll(expandBlocks.getBlocks());
+	point3<unsigned int> afterSize = nbdBlocks->size();
+	
+	LOG_ALL(sliceguarantorlog) << "Slice bound: " << sliceBound << ", block: " << *extractBlocks;
+	if (beforeSize == afterSize)
 	{
-		Blocks expandBlocks = Blocks(*extractBlocks);
-		expandBlocks.expand(util::ptrTo(borderX, 0, 0));
-		nbdBlocks->addAll(expandBlocks.getBlocks());
+		LOG_ALL(sliceguarantorlog) << ", slice is whole." << std::endl;
 	}
-
-	if (borderY)
+	else
 	{
-		Blocks expandBlocks = Blocks(*extractBlocks);
-		expandBlocks.expand(util::ptrTo(0, borderY, 0));
-		nbdBlocks->addAll(expandBlocks.getBlocks());
+		LOG_ALL(sliceguarantorlog) << ", slice NOT whole." << std::endl;
 	}
+	
 }

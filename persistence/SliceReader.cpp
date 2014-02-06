@@ -12,7 +12,6 @@ SliceReader::SliceReader()
 	registerInput(_store, "store");
 	registerInput(_blockManager, "block manager");
 	registerOutput(_slices, "slices");
-	registerOutput(_constraints, "linear constraints");
 	
 	_box.registerBackwardCallback(&SliceReader::onBoxSet, this);
 	_blocks.registerBackwardCallback(&SliceReader::onBlocksSet, this);
@@ -40,25 +39,25 @@ void SliceReader::updateOutputs()
 	if (!_blocks && !_box)
 	{
 		LOG_ERROR(slicereaderlog) << "Need either box or blocks, neither was set" << std::endl;
-		boost::shared_ptr<LinearConstraints> constraints = boost::make_shared<LinearConstraints>();
 		*_slices = *slices;
-		*_constraints = *constraints;
 		return;
 	}
 	else if (_sourceIsBox)
 	{
-		LOG_ERROR(slicereaderlog) << "Blocks derived from box input" << std::endl;
+		LOG_DEBUG(slicereaderlog) << "Blocks derived from box input" << std::endl;
 		blocks = _blockManager->blocksInBox(_box);
 	}
 	else
 	{
-		LOG_ERROR(slicereaderlog) << "Using blocks input directly" << std::endl;
+		LOG_DEBUG(slicereaderlog) << "Using blocks input directly" << std::endl;
 		blocks = _blocks;
 	}
 	
 	foreach (boost::shared_ptr<Block> block, *blocks)
 	{
 		boost::shared_ptr<Slices> blockSlices = _store->retrieveSlices(block);
+		LOG_ALL(slicereaderlog) << "For block " << *block << " retrieved " << blockSlices->size() <<
+			" slices" << std::endl;
 		foreach (boost::shared_ptr<Slice> slice, *blockSlices)
 		{
 			if (!sliceSet.count(*slice))
@@ -67,9 +66,10 @@ void SliceReader::updateOutputs()
 				sliceSet.insert(*slice);
 			}
 		}
-		slices->addConflictsFromSlices(*blockSlices);
+//		slices->addConflictsFromSlices(*blockSlices);
 	}
 	
+	LOG_ALL(slicereaderlog) << "Retrieved " << slices->size() << " slices total." << std::endl;
+	
 	*_slices = *slices;
-	*_constraints = *(_store->retrieveConstraints(slices));
 }

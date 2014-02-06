@@ -24,7 +24,6 @@ private:
 	pipeline::Input<BlockManager> _blockManager;
 	pipeline::Input<SliceStore> _store;
 	pipeline::Output<Slices> _slices;
-	pipeline::Output<LinearConstraints> _constraints;
 	
 	bool _sourceIsBox;
 };

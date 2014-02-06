@@ -2,7 +2,9 @@
 #include <boost/make_shared.hpp>
 #include <util/ProgramOptions.h>
 #include <pipeline/Value.h>
+#include <util/Logger.h>
 
+logger::LogChannel blocksolverlog("blocksolverlog", "[BlockSolver] ");
 
 util::ProgramOption optionRandomForestFileBlock(
 		util::_module           = "blockSolver",
@@ -53,6 +55,8 @@ BlockSolver::updateOutputs()
 	boost::shared_ptr<pipeline::Wrap<util::point3<unsigned int> > > offset;
 		
 	boost::shared_ptr<Blocks> boundingBlocks;
+	pipeline::Value<Slices> blockSlices;
+	pipeline::Value<Segments> blockSegments;
 		
 		
 	_segmentReader->setInput("blocks", _blocks);
@@ -62,9 +66,6 @@ BlockSolver::updateOutputs()
 	_sliceReader->setInput("store", _sliceStore);
 	
 	_rawImageStackReader->setInput("factory", _rawImageFactory);
-	
-	
-	
 	
 	_constraintExtractor->setInput("slices", _sliceReader->getOutput("slices"));
 	_constraintExtractor->setInput("segments", _segmentReader->getOutput("segments"));
@@ -123,9 +124,22 @@ BlockSolver::updateOutputs()
 
 	_neuronExtractor->setInput("segments", _reconstructor->getOutput());
 	
-	std::cout << " GO! " << std::endl;
+	LOG_DEBUG(blocksolverlog) << "GO." << std::endl;
 	
 	neurons = _neuronExtractor->getOutput();
+	
+	blockSlices = _sliceReader->getOutput("slices");
+	blockSegments = _segmentReader->getOutput("segments");
+	
+	LOG_DEBUG(blocksolverlog) << "Solved over " << blockSlices->size() <<
+		" slices and " << blockSegments->size() << " segments" << std::endl;
+	LOG_DEBUG(blocksolverlog) << "Blocks:" << std::endl;
+	
+	foreach (boost::shared_ptr<Block> block, *_blocks)
+	{
+		LOG_DEBUG(blocksolverlog) << *block << std::endl;
+	}
+		
 	*_neurons = *neurons;
 }
 

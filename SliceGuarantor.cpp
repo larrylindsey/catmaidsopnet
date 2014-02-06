@@ -59,12 +59,11 @@ SliceGuarantor::updateOutputs()
 		// Value used to force updateOutputs on the slice writer.
 		pipeline::Value<SliceStoreResult> sliceWriteCount;
 		
-		// Slice and LinearConstraints persistence.
+		// Slice persistence.
 		boost::shared_ptr<SliceWriter> sliceWriter = boost::make_shared<SliceWriter>();
 
-		// Slices and LinearConstraints extracted from the image underlying the requested area.
+		// Slices extracted from the image underlying the requested area.
 		boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
-		boost::shared_ptr<LinearConstraints> constraints = boost::make_shared<LinearConstraints>();
 
 		// Assume that some Slice's will overlap the guarantee box's boundary, so dilate.
 		extractBlocks->dilateXY();
@@ -81,7 +80,6 @@ SliceGuarantor::updateOutputs()
 		while (!guaranteed && extractBlocks->size().x * extractBlocks->size().y < *_maximumArea)
 		{
 			slices->clear();
-			constraints->clear();
 			
 			LOG_DEBUG(sliceguarantorlog) << "Extracting from box at " << extractBlocks->location()
 				<< " with size " << extractBlocks->size() << std::endl;
@@ -130,9 +128,7 @@ SliceGuarantor::updateOutputs()
 			LOG_ALL(sliceguarantorlog) << "Setting slice and Block inputs on SliceStore" <<
 				std::endl;
 			
-			// SliceWriter handles the restriction of constraints to the slices that are being pushed.
 			sliceWriter->setInput("slices", blockSlices);
-			sliceWriter->setInput("linear constraints", constraints);
 			sliceWriter->setInput("block", block);
 
 			// Force sliceWriter to run updateOutputs

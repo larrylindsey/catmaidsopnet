@@ -12,7 +12,6 @@ SliceReader::SliceReader()
 	registerInput(_store, "store");
 	registerInput(_blockManager, "block manager");
 	registerOutput(_slices, "slices");
-	registerOutput(_constraints, "linear constraints");
 	
 	_box.registerBackwardCallback(&SliceReader::onBoxSet, this);
 	_blocks.registerBackwardCallback(&SliceReader::onBlocksSet, this);
@@ -40,9 +39,7 @@ void SliceReader::updateOutputs()
 	if (!_blocks && !_box)
 	{
 		LOG_ERROR(slicereaderlog) << "Need either box or blocks, neither was set" << std::endl;
-		boost::shared_ptr<LinearConstraints> constraints = boost::make_shared<LinearConstraints>();
 		*_slices = *slices;
-		*_constraints = *constraints;
 		return;
 	}
 	else if (_sourceIsBox)
@@ -67,9 +64,7 @@ void SliceReader::updateOutputs()
 				sliceSet.insert(*slice);
 			}
 		}
-		slices->addConflictsFromSlices(*blockSlices);
 	}
 	
 	*_slices = *slices;
-	*_constraints = *(_store->retrieveConstraints(slices));
 }

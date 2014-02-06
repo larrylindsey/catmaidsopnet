@@ -66,26 +66,6 @@ public:
 	 */
 	virtual boost::shared_ptr<Blocks> getAssociatedBlocks(
 		const boost::shared_ptr<Slice>& slice) = 0;
-	
-	/**
-	 * Store constraints.
-	 * @param constraints - the LinearConstraints to store.
-	 */
-	virtual void storeConstraints(const boost::shared_ptr<LinearConstraints>& constraints) = 0;
-	
-	/**
-	 * Retrieve all constraints for a given Slices.
-	 * @param slices - the Slices for which constraints have been requested.
-	 * @return a shared_ptr ot a LinearConstraints containing the requested constraints.
-	 */
-	virtual boost::shared_ptr<LinearConstraints> retrieveConstraints(
-		const boost::shared_ptr<Slices>& slices) = 0;
-
-	/**
-	 * Stores the conflict information from a given Slices object.
-	 * @param slices - the Slices from which conflict information is to be stored.
-	 */
-	virtual void storeConflicts(const boost::shared_ptr<Slices>& slices) = 0;
 };
 
 #endif //SLICE_STORE_H__

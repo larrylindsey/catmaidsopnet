@@ -54,8 +54,11 @@ SliceWriter::assignParents(ComponentSliceMap& componentSliceMap,
 		foreach (boost::shared_ptr<ComponentTree::Node> childNode, node->getChildren())
 		{
 			boost::shared_ptr<Slice> childSlice = componentSliceMap[*(childNode->getComponent())];
-			_store->setParent(childSlice, parentSlice);
-			assignParents(componentSliceMap, childNode);
+			if (childSlice)
+			{
+				_store->setParent(childSlice, parentSlice);
+				assignParents(componentSliceMap, childNode);
+			}
 		}
 	}
 }

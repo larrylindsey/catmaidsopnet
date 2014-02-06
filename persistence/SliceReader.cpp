@@ -110,9 +110,11 @@ SliceReader::insertSlicesIntoTrees(const boost::shared_ptr<Slices>& slices,
 			boost::make_shared<ComponentTree::Node>(boost::make_shared<ConnectedComponent>());
 		foreach (boost::shared_ptr<Slice> slice, *(it->second))
 		{
+			std::deque<unsigned int> idq;
 			boost::shared_ptr<ComponentTree::Node> rootNode = 
 				boost::make_shared<ComponentTree::Node>(slice->getComponent());
-			addNode(rootNode, slice, sliceSet);
+			
+			addNode(rootNode, slice, sliceSet, slices, idq);
 			rootNode->setParent(fakeNode);
 		}	
 		
@@ -125,18 +127,32 @@ SliceReader::insertSlicesIntoTrees(const boost::shared_ptr<Slices>& slices,
 void
 SliceReader::addNode(const boost::shared_ptr<ComponentTree::Node>& node,
 					 const boost::shared_ptr<Slice>& slice,
-					 const boost::unordered_set<Slice>& sliceSet)
+					 const boost::unordered_set<Slice>& sliceSet,
+					 const boost::shared_ptr<Slices>& outputSlices,
+					 std::deque<unsigned int>& slice_ids)
 {
+	bool addConflict = true;
+	slice_ids.push_back(slice->getId());
+
 	foreach (boost::shared_ptr<Slice> childSlice, *(_store->getChildren(slice)))
 	{
 		if (sliceSet.count(*childSlice))
 		{
 			boost::shared_ptr<ComponentTree::Node> childNode = 
 				boost::make_shared<ComponentTree::Node>(childSlice->getComponent());
+
+			addConflict = false;
 			childNode->setParent(node);
-			addNode(childNode, childSlice, sliceSet);
+			addNode(childNode, childSlice, sliceSet, outputSlices, slice_ids);
 		}
 	}
+
+	if (addConflict)
+	{
+		outputSlices->addConflicts(slice_ids);
+	}
+
+	slice_ids.pop_back();
 }
 
 

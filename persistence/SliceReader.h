@@ -1,6 +1,7 @@
 #ifndef SLICE_READER_H__
 #define SLICE_READER_H__
 
+#include <deque>
 #include <boost/unordered_set.hpp>
 #include <imageprocessing/ComponentTrees.h>
 #include <catmaidsopnet/persistence/SliceStore.h>
@@ -27,7 +28,9 @@ private:
 	
 	void addNode(const boost::shared_ptr<ComponentTree::Node>& node,
 				 const boost::shared_ptr<Slice>& slice,
-				 const boost::unordered_set<Slice>& sliceSet);
+				 const boost::unordered_set<Slice>& sliceSet,
+				 const boost::shared_ptr<Slices>& outputSlices,
+				 std::deque<unsigned int>& slice_ids);
 
 	pipeline::Input<Blocks> _blocks;
 	pipeline::Input<Box<> > _box;

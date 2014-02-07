@@ -21,8 +21,23 @@ SliceGuarantor::SliceGuarantor()
 }
 
 void
+SliceGuarantor::guaranteeSlices() {
+
+	updateInputs();
+	extractSlices();
+}
+
+void
 SliceGuarantor::updateOutputs()
 {
+	SliceStoreResult result = extractSlices();
+
+	*_count = result;
+}
+
+SliceStoreResult
+SliceGuarantor::extractSlices() {
+
 	// We're given a Box. Find all Blocks overlapping that Box.
 	boost::shared_ptr<BlockManager> blockManager = _blocks->getManager();
 	boost::shared_ptr<Blocks> guaranteeBlocks = _blocks;

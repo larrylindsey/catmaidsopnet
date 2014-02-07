@@ -22,9 +22,17 @@ public:
 
     SliceGuarantor();
 
+	/**
+	 * Makes sure the inputs are up-to-date and extracts the slices for the 
+	 * requested blocks.
+	 */
+	void guaranteeSlices();
+
 private:
 	
 	void updateOutputs();
+
+	SliceStoreResult extractSlices();
 	
 	bool guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
 						 const boost::shared_ptr<Blocks>& guaranteeBlocks,

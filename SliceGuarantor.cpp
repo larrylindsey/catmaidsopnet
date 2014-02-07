@@ -3,7 +3,6 @@
 #include <imageprocessing/ImageExtractor.h>
 #include <sopnet/sopnet/slices/SliceExtractor.h>
 #include <sopnet/sopnet/slices/Slice.h>
-#include <catmaidsopnet/persistence/SliceWriter.h>
 #include <util/rect.hpp>
 #include <util/Logger.h>
 #include <pipeline/Value.h>
@@ -38,6 +37,8 @@ SliceGuarantor::updateOutputs()
 	LOG_DEBUG(sliceguarantorlog) << "Request size: " << _box->size() << std::endl;
 	LOG_DEBUG(sliceguarantorlog) << "Guarantee size: " << guaranteeBlocks->size()<< std::endl;
 	
+	// Check to see whether each block in guaranteeBlocks has already had its slices extracted.
+	// If this is the case, we have no work to do
 	foreach (boost::shared_ptr<Block> block, *guaranteeBlocks)
 	{
 		cachedSlices &= block->setSlicesFlag(true);
@@ -55,12 +56,6 @@ SliceGuarantor::updateOutputs()
 		
 		// Extract blocks is a superset of guarantee blocks.
 		boost::shared_ptr<Blocks> extractBlocks = boost::make_shared<Blocks>(guaranteeBlocks);
-
-		// Value used to force updateOutputs on the slice writer.
-		pipeline::Value<SliceStoreResult> sliceWriteCount;
-		
-		// Slice and LinearConstraints persistence.
-		boost::shared_ptr<SliceWriter> sliceWriter = boost::make_shared<SliceWriter>();
 
 		// Slices and ComponentTrees extracted from the image underlying the requested area.
 		boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
@@ -106,35 +101,8 @@ SliceGuarantor::updateOutputs()
 				". Some large Slices have not been fully extracted." << std::endl;
 		}
 		
-		// Setup the SliceWriter, and write away!
-		sliceWriter->setInput("store", _sliceStore);
-		
-		foreach (boost::shared_ptr<Block> block, *guaranteeBlocks)
-		{
-			LOG_DEBUG(sliceguarantorlog) << "Collecting slices assocated with block at location "
-				<< block->location() << std::endl;
-			boost::shared_ptr<Slices> blockSlices = boost::make_shared<Slices>();
-			
-			// Collect only the slices that overlap the guarantee box.
-			
-			foreach(boost::shared_ptr<Slice> slice, *slices)
-			{
-				if (block->overlaps(slice->getComponent()))
-				{
-					blockSlices->add(slice);
-				}
-			}
-			
-			sliceWriter->setInput("slices", blockSlices);
-			sliceWriter->setInput("component trees", trees);
-			sliceWriter->setInput("block", block);
-
-			// Force sliceWriter to run updateOutputs
-			sliceWriteCount = sliceWriter->getOutput();
-			count->count += sliceWriteCount->count;
-			
-			LOG_DEBUG(sliceguarantorlog) << "Wrote " << sliceWriteCount->count << " slices to Block" << std::endl;
-		}
+		// Write the slices to the store.
+		count = writeSlices(slices, trees);
 		
 		LOG_DEBUG(sliceguarantorlog) << "Wrote " << count->count << " slices total" << std::endl;
 	}
@@ -143,6 +111,101 @@ SliceGuarantor::updateOutputs()
 		LOG_DEBUG(sliceguarantorlog) << "All blocks have already been extracted" << std::endl;
 	}
 	*_count = *count;
+}
+
+boost::shared_ptr<SliceStoreResult>
+SliceGuarantor::writeSlices(const boost::shared_ptr<Blocks> guaranteeBlocks,
+							const boost::shared_ptr<Blocks> extractBlocks,
+							const boost::shared_ptr<Slices>& slices,
+							const boost::shared_ptr<ComponentTrees>& trees)
+{
+	//TODO: Consider migrating this behavior to the SliceWriter.
+	// * possible to reduce the number of db hits
+	// * it seems philosophically "cleaner" to move the nitty-gritty of slice storage to the class
+	//      that handles it.
+	
+	boost::shared_ptr<SliceStoreResult> count = boost::make_shared<SliceStoreResult>();
+	
+	
+	// Slice and LinearConstraints persistence.
+	boost::shared_ptr<SliceWriter> sliceWriter = boost::make_shared<SliceWriter>();
+	
+	// A collection of slices that overlap the guarantee blocks. Used in a later step.
+	boost::shared_ptr<Slices> guaranteeBlockSlices = boost::make_shared<Slices>();
+	// The whole "family" of the above slices, also used later.
+	boost::shared_ptr<Slices> sliceFamily;
+	
+	
+	/*
+	 * write slices in two steps
+	 * 1) Write the slices that overlap any of the gauranteeBlocks
+	 * 2) Write the slices that are descendants of those in step 1, that
+	 *    were not written during step 1.
+	 */
+	
+	sliceWriter->setInput("store", _sliceStore);
+	
+	// Write the Slices in the guarantee blocks to the store.
+	foreach (boost::shared_ptr<Block> block, *guaranteeBlocks)
+	{
+		writeSlicesHelper(block, slices, trees, sliceWriter, guaranteeBlockSlices, count);
+	}
+	
+	// Collect the descendants of the slices we just wrote, and write them to the store,
+	// regardless of whether they are in the guarantee blocks.
+	sliceFamily = collectDescendants(guaranteeBlockSlices, trees);
+	
+	foreach (boost::shared_ptr<Block> block, *extractBlocks)
+	{
+		if (!guaranteeBlocks->contains(block))
+		{
+			boost::shared_ptr<Slices> emptySlices;
+			writeSlicesHelper(block, sliceFamily, trees, emptySlices, count);
+		}
+		
+	}
+	
+	return count;
+}
+
+
+void SliceGuarantor::writeSlicesHelper(const boost::shared_ptr<Block>& block,
+									   const boost::shared_ptr<Slices>& slices,
+									   const boost::shared_ptr<ComponentTrees>& trees,
+									   const boost::shared_ptr<SliceWriter>& sliceWriter,
+									   const boost::shared_ptr<Slices>& writtenSlices,
+									   const boost::shared_ptr<SliceStoreResult>& count)
+{
+	// Value used to force updateOutputs on the slice writer.
+	pipeline::Value<SliceStoreResult> sliceWriteCount;
+	LOG_ALL(sliceguarantorlog) << "Collecting slices assocated with block at location "
+		<< block->location() << std::endl;
+	boost::shared_ptr<Slices> blockSlices = boost::make_shared<Slices>();
+	
+	// Collect only the slices that overlap the guarantee box.
+	
+	foreach(boost::shared_ptr<Slice> slice, *slices)
+	{
+		if (block->overlaps(slice->getComponent()))
+		{
+			blockSlices->add(slice);
+			if (writtenSlices)
+			{
+				writtenSlices->add(slice);
+			}
+		}
+	}
+	
+	sliceWriter->setInput("slices", blockSlices);
+	sliceWriter->setInput("component trees", trees);
+	sliceWriter->setInput("block", block);
+
+	// Force sliceWriter to run updateOutputs
+	sliceWriteCount = sliceWriter->getOutput();
+	count->count += sliceWriteCount->count;
+	
+	LOG_ALL(sliceguarantorlog) << "Wrote " << sliceWriteCount->count << " slices to Block" <<
+		std::endl;
 }
 
 bool
@@ -251,7 +314,7 @@ SliceGuarantor::checkWhole(const boost::shared_ptr<Slice>& slice,
 		expandBlocks.expand(util::ptrTo(-1, 0, 0));
 		nbdBlocks->addAll(expandBlocks.getBlocks());
 	}
-	else if (sliceBound.maxX >= blockLocation.x + blockSize.x)
+	else if (sliceBound.maxX >= blockLocation.x + blockSize.x - 1)
 	{
 		Blocks expandBlocks = Blocks(*extractBlocks);
 		expandBlocks.expand(util::ptrTo(1, 0, 0));
@@ -264,7 +327,7 @@ SliceGuarantor::checkWhole(const boost::shared_ptr<Slice>& slice,
 		expandBlocks.expand(util::ptrTo(0, -1, 0));
 		nbdBlocks->addAll(expandBlocks.getBlocks());
 	}
-	else if (sliceBound.maxY >= blockLocation.y + blockSize.y)
+	else if (sliceBound.maxY >= blockLocation.y + blockSize.y - 1)
 	{
 		Blocks expandBlocks = Blocks(*extractBlocks);
 		expandBlocks.expand(util::ptrTo(0, 1, 0));
@@ -272,3 +335,54 @@ SliceGuarantor::checkWhole(const boost::shared_ptr<Slice>& slice,
 	}
 
 }
+
+
+boost::shared_ptr<Slices>
+SliceGuarantor::collectDescendants(const boost::shared_ptr<Slices>& slices,
+								   const boost::shared_ptr<ComponentTrees>& trees)
+{
+	ComponentSliceMap componentSliceMap;
+	ComponentTrees::iterator ctit;
+	
+	boost::shared_ptr<Slices> descendants = boost::make_shared<Slices>();
+
+	descendants->addAll(slices);
+	
+	foreach (boost::shared_ptr<Slice> slice, *_slices)
+	{
+		componentSliceMap[*(slice->getComponent())] = slice;
+	}
+	
+	for (ctit = trees->begin(); ctit != trees->end(); ++ctit)
+	{
+		boost::shared_ptr<ComponentTree::Node> rootNode = ctit->second->getRoot();
+		
+		foreach (boost::shared_ptr<ComponentTree::Node> node, rootNode->getChildren())
+		{
+			getChildren(componentSliceMap, node, descendants);
+		}
+	}
+}
+
+void
+SliceGuarantor::getChildren(SliceGuarantor::ComponentSliceMap& componentSliceMap,
+							const boost::shared_ptr<ComponentTree::Node>& node,
+							const boost::shared_ptr<Slices>& descendants)
+{
+	boost::shared_ptr<Slice> parentSlice = componentSliceMap[*(node->getComponent())];
+	
+	if (parentSlice)
+	{
+		foreach (boost::shared_ptr<ComponentTree::Node> childNode, node->getChildren())
+		{
+			boost::shared_ptr<Slice> childSlice = componentSliceMap[*(childNode->getComponent())];
+			if (childSlice)
+			{
+				descendants->add(childSlice);
+				getChildren(componentSliceMap, childNode, descendants);
+			}
+		}
+	}
+}
+
+

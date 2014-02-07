@@ -4,6 +4,7 @@
 #include <set>
 #include <boost/shared_ptr.hpp>
 
+#include <catmaidsopnet/persistence/SliceWriter.h>
 #include <catmaidsopnet/persistence/SliceStore.h>
 #include <sopnet/sopnet/block/Box.h>
 #include <sopnet/sopnet/block/Blocks.h>
@@ -16,6 +17,7 @@
 
 class SliceGuarantor : public pipeline::SimpleProcessNode<>
 {
+	typedef boost::unordered_map<ConnectedComponent, boost::shared_ptr<Slice> >  ComponentSliceMap;
 public:
 
     SliceGuarantor();
@@ -28,6 +30,23 @@ private:
 						 const boost::shared_ptr<Blocks>& guaranteeBlocks,
 						 const boost::shared_ptr<Slices>& slices,
 						 const boost::shared_ptr<ComponentTrees>& trees);
+	
+	boost::shared_ptr<SliceStoreResult> writeSlices(const boost::shared_ptr<Slices>& slices,
+		const boost::shared_ptr<ComponentTrees>& trees);
+	
+	void writeSlicesHelper(const boost::shared_ptr<Block>& block,
+							const boost::shared_ptr<Slices>& slices,
+							const boost::shared_ptr<ComponentTrees>& trees,
+							const boost::shared_ptr<SliceWriter>& sliceWriter,
+							const boost::shared_ptr<Slices>& writtenSlices,
+							const boost::shared_ptr<SliceStoreResult>& count);
+	
+	boost::shared_ptr<Slices> collectDescendants(const boost::shared_ptr<Slices>& slices,
+												 const boost::shared_ptr<ComponentTrees>& trees);
+	
+	void getChildren(ComponentSliceMap& componentSliceMap,
+					 const boost::shared_ptr<ComponentTree::Node>& node,
+					 const boost::shared_ptr<Slices>& descendants);
 	
 	/**
 	 * Helper function that checks whether a Slice can be considered whole or

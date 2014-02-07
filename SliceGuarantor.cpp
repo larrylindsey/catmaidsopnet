@@ -301,7 +301,7 @@ SliceGuarantor::checkWhole(const boost::shared_ptr<Slice>& slice,
 {
 	//TODO: figure out the best way to maintain a map from a slice to its bordering Blocks.
 	// Check whether the slice's bounding box touches the Block boundary
-	util::rect<int> sliceBound = slice->getComponent()->getBoundingBox();
+	util::rect<unsigned int> sliceBound = slice->getComponent()->getBoundingBox();
 	
 	point3<unsigned int> blockLocation = extractBlocks->location();
 	point3<unsigned int> blockSize = extractBlocks->size();

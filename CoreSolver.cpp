@@ -50,7 +50,6 @@ CoreSolver::updateOutputs()
 	boost::shared_ptr<LinearSolverParameters> binarySolverParameters = 
 		boost::make_shared<LinearSolverParameters>(Binary);
 	pipeline::Value<SegmentTrees> neurons;
-	boost::shared_ptr<pipeline::Wrap<util::point3<unsigned int> > > offset;
 		
 	boost::shared_ptr<Blocks> boundingBlocks;
 		
@@ -77,8 +76,7 @@ CoreSolver::updateOutputs()
 	// of the slices that are present. This will usually be larger than the requested
 	// Blocks.
 	boundingBlocks = computeBound();
-	offset = boost::make_shared<pipeline::Wrap<util::point3<unsigned int> > >(
-		boundingBlocks->location());
+	pipeline::Value<util::point3<unsigned int> > offset(boundingBlocks->location());;
 	_rawImageStackReader->setInput("block", boundingBlocks);
 	
 	

@@ -22,16 +22,10 @@ private:
 	
 	void onBlocksSet(const pipeline::InputSetBase&);
 	
-	void insertSlicesIntoTrees(const boost::shared_ptr<Slices>& slices,
-								 const boost::shared_ptr<ComponentTrees>& trees,
-								 const boost::unordered_set<Slice>& sliceSet);
 	
-	void addNode(const boost::shared_ptr<ComponentTree::Node>& node,
-				 const boost::shared_ptr<Slice>& slice,
-				 const boost::unordered_set<Slice>& sliceSet,
-				 const boost::shared_ptr<Slices>& outputSlices,
-				 std::deque<unsigned int>& slice_ids);
-
+	bool fetchChildren(const boost::shared_ptr<Slices>& slicesIn,
+					   const boost::shared_ptr<Slices>& slicesOut);
+	
 	pipeline::Input<Blocks> _blocks;
 	pipeline::Input<Box<> > _box;
 	pipeline::Input<BlockManager> _blockManager;

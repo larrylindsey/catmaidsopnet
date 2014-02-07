@@ -222,3 +222,31 @@ LocalSliceStore::getParent(const boost::shared_ptr< Slice >& childSlice)
 		return boost::shared_ptr<Slice>();
 	}
 }
+
+void
+LocalSliceStore::dumpStore()
+{
+	SliceBlockMap::iterator sbm_it;
+	BlockSliceMap::iterator bsm_it;
+	
+	LOG_DEBUG(localslicestorelog) << "I have " << _sliceMasterList.size() << " slices recorded" <<
+		std::endl;
+	
+	foreach (const Slice& slice, _sliceMasterList)
+	{
+		LOG_DEBUG(localslicestorelog) << "Slice id: " << slice.getId() << "\tHash: " <<
+			slice.hashValue() << std::endl;
+	}
+	
+	for (sbm_it = _sliceBlockMap->begin(); sbm_it != _sliceBlockMap->end(); ++sbm_it)
+	{
+		LOG_DEBUG(localslicestorelog) << "Slice id: " << sbm_it->first.getId() <<
+			" with " << sbm_it->second->length() << " blocks " << std::endl;
+	}
+	
+	for (bsm_it = _blockSliceMap->begin(); bsm_it != _blockSliceMap->end(); ++bsm_it)
+	{
+		LOG_DEBUG(localslicestorelog) << "Block " << bsm_it->first << " with " <<
+			bsm_it->second->size() << " slices" << std::endl;
+	}
+}

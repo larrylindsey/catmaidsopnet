@@ -20,7 +20,7 @@ ConsistencyConstraintExtractor::ConsistencyConstraintExtractor()
 {
 	registerInput(_slices, "slices");
 	registerInput(_segments, "segments");
-	registerInput(_forceExplanation, "force explanation", pipeline::Optional);
+	registerInput(_forceExplanation, "force explanation");
 	registerInput(_trees, "component trees");
 	registerOutput(_linearConstraints, "linear constraints");
 }

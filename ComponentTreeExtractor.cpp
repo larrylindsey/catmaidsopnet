@@ -1,7 +1,9 @@
 #include "ComponentTreeExtractor.h"
 
 #include <util/Logger.h>
-logger::LogChannel componenttreeextractorlog("componenttreeextractorlog", "[ComponentTree] ");
+#include <boost/unordered_map.hpp>
+
+logger::LogChannel componenttreeextractorlog("componenttreeextractorlog", "[ComponentTreeExtractor] ");
 
 ComponentTreeExtractor::ComponentTreeExtractor()
 {
@@ -21,7 +23,7 @@ void
 ComponentTreeExtractor::updateOutputs()
 {
 	boost::shared_ptr<ComponentTrees> trees = boost::make_shared<ComponentTrees>();
-	boost::unordered_set<Slices> sliceSet;
+	boost::unordered_set<Slice> sliceSet;
 	boost::shared_ptr<LinearConstraints> constraints = boost::make_shared<LinearConstraints>();
 	
 	foreach (boost::shared_ptr<Slice> slice, *_slices)
@@ -29,7 +31,7 @@ ComponentTreeExtractor::updateOutputs()
 		sliceSet.insert(*slice);
 	}
 	
-	insertSlicesIntoTrees(_slices, trees, constraints, sliceSet);
+	insertSlicesIntoTrees(trees, constraints, sliceSet);
 	
 	if (_segments)
 	{
@@ -47,7 +49,7 @@ ComponentTreeExtractor::updateOutputs()
 
 
 void
-ComponentTreeExtractor::insertSlicesIntoTrees(const boost::shared_ptr<Slices>& slices,
+ComponentTreeExtractor::insertSlicesIntoTrees(
 										const boost::shared_ptr<ComponentTrees>& trees,
 										const boost::shared_ptr<LinearConstraints>& constraints,
 										const boost::unordered_set<Slice>& sliceSet)
@@ -57,10 +59,12 @@ ComponentTreeExtractor::insertSlicesIntoTrees(const boost::shared_ptr<Slices>& s
 	
 	LOG_DEBUG(componenttreeextractorlog) << "Finding root slices" << std::endl;
 	
-	foreach (boost::shared_ptr<Slice> slice, *slices)
+	// Find the root slices in each section. There will be many, and we will make them
+	// children of a fake node.
+	foreach (boost::shared_ptr<Slice> slice, *_slices)
 	{
 		boost::shared_ptr<Slice> parentSlice = _store->getParent(slice);
-		if (!parentSlice || !sliceSet.count(*parentSlice))
+		if (!parentSlice)
 		{
 			if (!rootSlices.count(slice->getSection()))
 			{
@@ -77,7 +81,8 @@ ComponentTreeExtractor::insertSlicesIntoTrees(const boost::shared_ptr<Slices>& s
 		
 		boost::shared_ptr<ComponentTree::Node> fakeNode =
 			boost::make_shared<ComponentTree::Node>(boost::make_shared<ConnectedComponent>());
-		foreach (boost::shared_ptr<Slice> slice, *(it->second))
+		boost::shared_ptr<Slices> slices = it->second;
+		foreach (boost::shared_ptr<Slice> slice, *slices)
 		{
 			std::deque<unsigned int> idq;
 			boost::shared_ptr<ComponentTree::Node> rootNode = 
@@ -85,7 +90,7 @@ ComponentTreeExtractor::insertSlicesIntoTrees(const boost::shared_ptr<Slices>& s
 			
 			addNode(rootNode, slice, sliceSet, slices, constraints, idq);
 			rootNode->setParent(fakeNode);
-		}	
+		}
 		
 		(*trees)[it->first]->setRoot(fakeNode);
 	}
@@ -113,9 +118,10 @@ ComponentTreeExtractor::addNode(const boost::shared_ptr<ComponentTree::Node>& no
 			boost::shared_ptr<ComponentTree::Node> childNode = 
 				boost::make_shared<ComponentTree::Node>(childSlice->getComponent());
 
+			// if this node has a child, then we are not ready to add the conflict info.
 			addConflict = false;
 			childNode->setParent(node);
-			addNode(childNode, childSlice, sliceSet, outputSlices, slice_ids);
+			addNode(childNode, childSlice, sliceSet, outputSlices, constraints, slice_ids);
 		}
 	}
 

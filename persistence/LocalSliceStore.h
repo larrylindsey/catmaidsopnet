@@ -40,7 +40,8 @@ public:
 	boost::shared_ptr<Slices> getChildren(const boost::shared_ptr<Slice>& parentSlice);
 
 	boost::shared_ptr<Slice> getParent(const boost::shared_ptr<Slice>& childSlice);
-
+	
+	void dumpStore();
 private:
 	
 	void mapSliceToBlock(const boost::shared_ptr<Slice>& slice,

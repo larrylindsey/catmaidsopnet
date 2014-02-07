@@ -23,7 +23,7 @@ private:
 	void onBlocksSet(const pipeline::InputSetBase&);
 	
 	
-	bool fetchChildren(const boost::shared_ptr<Slices>& slicesIn,
+	void fetchChildren(const boost::shared_ptr<Slices>& slicesIn,
 					   const boost::shared_ptr<Slices>& slicesOut);
 	
 	pipeline::Input<Blocks> _blocks;

@@ -31,15 +31,18 @@ private:
 						 const boost::shared_ptr<Slices>& slices,
 						 const boost::shared_ptr<ComponentTrees>& trees);
 	
-	boost::shared_ptr<SliceStoreResult> writeSlices(const boost::shared_ptr<Slices>& slices,
+	boost::shared_ptr<SliceStoreResult> writeSlices(
+		const boost::shared_ptr<Blocks>& guaranteeBlocks,
+		const boost::shared_ptr<Blocks>& extractBlocks,
+		const boost::shared_ptr<Slices>& slices,
 		const boost::shared_ptr<ComponentTrees>& trees);
 	
 	void writeSlicesHelper(const boost::shared_ptr<Block>& block,
-							const boost::shared_ptr<Slices>& slices,
-							const boost::shared_ptr<ComponentTrees>& trees,
-							const boost::shared_ptr<SliceWriter>& sliceWriter,
-							const boost::shared_ptr<Slices>& writtenSlices,
-							const boost::shared_ptr<SliceStoreResult>& count);
+									   const boost::shared_ptr<Slices>& slices,
+									   const boost::shared_ptr<ComponentTrees>& trees,
+									   const boost::shared_ptr<SliceWriter>& sliceWriter,
+									   const boost::shared_ptr<Slices>& writtenSlices,
+									   const boost::shared_ptr<SliceStoreResult>& count);
 	
 	boost::shared_ptr<Slices> collectDescendants(const boost::shared_ptr<Slices>& slices,
 												 const boost::shared_ptr<ComponentTrees>& trees);

@@ -23,7 +23,7 @@
 #include <sopnet/features/SegmentFeaturesExtractor.h>
 #include <catmaidsopnet/persistence/SegmentStore.h>
 #include <catmaidsopnet/persistence/SliceStore.h>
-#include <catmaidsopnet/ConsistencyConstraintExtractor.h>
+#include <catmaidsopnet/ComponentTreeExtractor.h>
 #include <catmaidsopnet/persistence/SegmentReader.h>
 #include <catmaidsopnet/persistence/SliceReader.h>
 
@@ -53,7 +53,7 @@ private:
 	pipeline::Output<SegmentTrees> _neurons;
 	
 	boost::shared_ptr<ProblemAssembler> _problemAssembler;
-	boost::shared_ptr<ConsistencyConstraintExtractor> _constraintExtractor;
+	boost::shared_ptr<ComponentTreeExtractor> _componentTreeExtractor;
 	boost::shared_ptr<Reconstructor> _reconstructor;
 	boost::shared_ptr<LinearSolver> _linearSolver;
 	boost::shared_ptr<NeuronExtractor> _neuronExtractor;

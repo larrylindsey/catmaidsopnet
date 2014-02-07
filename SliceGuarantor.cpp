@@ -102,7 +102,7 @@ SliceGuarantor::updateOutputs()
 		}
 		
 		// Write the slices to the store.
-		count = writeSlices(slices, trees);
+		count = writeSlices(guaranteeBlocks, extractBlocks, slices, trees);
 		
 		LOG_DEBUG(sliceguarantorlog) << "Wrote " << count->count << " slices total" << std::endl;
 	}
@@ -114,8 +114,8 @@ SliceGuarantor::updateOutputs()
 }
 
 boost::shared_ptr<SliceStoreResult>
-SliceGuarantor::writeSlices(const boost::shared_ptr<Blocks> guaranteeBlocks,
-							const boost::shared_ptr<Blocks> extractBlocks,
+SliceGuarantor::writeSlices(const boost::shared_ptr<Blocks>& guaranteeBlocks,
+							const boost::shared_ptr<Blocks>& extractBlocks,
 							const boost::shared_ptr<Slices>& slices,
 							const boost::shared_ptr<ComponentTrees>& trees)
 {
@@ -160,7 +160,7 @@ SliceGuarantor::writeSlices(const boost::shared_ptr<Blocks> guaranteeBlocks,
 		if (!guaranteeBlocks->contains(block))
 		{
 			boost::shared_ptr<Slices> emptySlices;
-			writeSlicesHelper(block, sliceFamily, trees, emptySlices, count);
+			writeSlicesHelper(block, sliceFamily, trees, sliceWriter, emptySlices, count);
 		}
 		
 	}
@@ -346,9 +346,9 @@ SliceGuarantor::collectDescendants(const boost::shared_ptr<Slices>& slices,
 	
 	boost::shared_ptr<Slices> descendants = boost::make_shared<Slices>();
 
-	descendants->addAll(slices);
+	descendants->addAll(*slices);
 	
-	foreach (boost::shared_ptr<Slice> slice, *_slices)
+	foreach (boost::shared_ptr<Slice> slice, *slices)
 	{
 		componentSliceMap[*(slice->getComponent())] = slice;
 	}

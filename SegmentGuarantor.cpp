@@ -1,6 +1,7 @@
 #include "SegmentGuarantor.h"
 #include <util/Logger.h>
 #include <catmaidsopnet/persistence/SegmentWriter.h>
+#include <catmaidsopnet/ComponentTreeExtractor.h>
 #include <sopnet/segments/SegmentExtractor.h>
 #include <pipeline/Value.h>
 
@@ -12,6 +13,7 @@ SegmentGuarantor::SegmentGuarantor()
 	registerInput(_blockManager, "block manager");
 	registerInput(_segmentStore, "segment store");
 	registerInput(_sliceStore, "slice store");
+	registerInput(_forceExplanation, "force explanation");
 	
 	registerOutput(_result, "count");
 }
@@ -20,32 +22,27 @@ boost::shared_ptr<Slices>
 SegmentGuarantor::collectNecessarySlices(const boost::shared_ptr<SliceReader>& sliceReader,
 										 const boost::shared_ptr< Blocks >& sliceBlocks)
 {
-	pipeline::Value<Slices> slices;
+	pipeline::Value<Slices> slices, conflictSlices;
 	boost::shared_ptr<Blocks> extraBlocks = boost::make_shared<Blocks>(sliceBlocks);
-	boost::shared_ptr<Slices> ptrSlices; // For semi-explicit casting.
+	boost::shared_ptr<ComponentTreeExtractor> componentTreeExtractor =
+		boost::make_shared<ComponentTreeExtractor>();
 	
-	// Read minimal slices for guaranteed box.
+	
+	// The Slice Reader pulls in the slices associated with sliceBlocks,
+	// along with all descendants, so we should have everything we need.
 	sliceReader->setInput("blocks", sliceBlocks);
 	sliceReader->setInput("store", _sliceStore);
-	slices = sliceReader->getOutput("slices");
 	
-	foreach (boost::shared_ptr<Slice> slice, *slices)
-	{
-		if (!extraBlocks->contains(slice->getComponent()->getBoundingBox()))
-		{
-			boost::shared_ptr<Box<> > sliceBox =
-				boost::make_shared<Box<> >(slice->getComponent()->getBoundingBox(),
-						sliceBlocks->location().z, sliceBlocks->size().z);
-			extraBlocks->addAll(_blockManager->blocksInBox(sliceBox));
-		}
-	}
+
+	// Set conflict data in slices
+	componentTreeExtractor->setInput("blocks", extraBlocks);
+	componentTreeExtractor->setInput("slices", sliceReader->getOutput("slices"));
+	componentTreeExtractor->setInput("force explanation", _forceExplanation);
+	componentTreeExtractor->setInput("store", _sliceStore);
 	
-	sliceReader->setInput("blocks", extraBlocks);
-	slices = sliceReader->getOutput("slices");
+	conflictSlices = componentTreeExtractor->getOutput("slices");
 	
-	ptrSlices = slices;
-	
-	return ptrSlices;
+	return conflictSlices;
 }
 
 
@@ -94,12 +91,10 @@ void SegmentGuarantor::guaranteeSegments(
 			
 			extractedSegments = extractor->getOutput("segments");
 			
-			LOG_DEBUG(segmentguarantorlog) << "Extractor getOutput has returned" << std::endl;
 			LOG_DEBUG(segmentguarantorlog) << "Got " << extractedSegments->size() << " segments"
 				<< std::endl;
 			
 			segments->addAll(extractedSegments);
-			//segmentConstraints->addAll(*extractedConstraints);
 		}
 // 		else
 // 		{

@@ -20,7 +20,7 @@ public:
 private:
 	void updateOutputs();
 	
-	void insertSlicesIntoTrees(const boost::shared_ptr<Slices>& slices,
+	void insertSlicesIntoTrees(
 								 const boost::shared_ptr<ComponentTrees>& trees,
 								 const boost::shared_ptr<LinearConstraints>& constraints,
 								 const boost::unordered_set<Slice>& sliceSet);

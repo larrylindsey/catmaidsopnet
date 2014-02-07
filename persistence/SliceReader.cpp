@@ -55,6 +55,8 @@ void SliceReader::updateOutputs()
 		blocks = _blocks;
 	}
 	
+	LOG_DEBUG(slicereaderlog) << "Retrieving block slices" << std::endl;
+	
 	foreach (boost::shared_ptr<Block> block, *blocks)
 	{
 		boost::shared_ptr<Slices> blockSlices = _store->retrieveSlices(block);
@@ -72,22 +74,36 @@ void SliceReader::updateOutputs()
 	// a Slice in this block.
 	parentSlices = slices;
 	
+	LOG_DEBUG(slicereaderlog) << "Retrieving slice descendants" << std::endl;
+	
 	while (!fullHouse)
 	{
 		boost::shared_ptr<Slices> childSlices = boost::make_shared<Slices>();
-		fullHouse = !fetchChildren(parentSlices, childSlices);
-		slices->addAll(childSlices);
+		
+		LOG_DEBUG(slicereaderlog) << "Fetching children..." << std::endl;
+		fetchChildren(parentSlices, childSlices);
+		
+		LOG_DEBUG(slicereaderlog) << "Got " << childSlices->size() << " kids." << std::endl;
+		
+		fullHouse = childSlices->size() == 0;
+		slices->addAll(*childSlices);
 		parentSlices = childSlices;
 	}
+	
+	LOG_DEBUG(slicereaderlog) << "Done." << std::endl;
 
 	*_slices = *slices;
 }
 
-bool
+void
 SliceReader::fetchChildren(const boost::shared_ptr<Slices>& slicesIn,
 						   const boost::shared_ptr<Slices>& slicesOut)
 {
-
+	foreach (boost::shared_ptr<Slice> slice, *slicesIn)
+	{
+		boost::shared_ptr<Slices> childSlices = _store->getChildren(slice);
+		slicesOut->addAll(*childSlices);
+	}
 }
 
 

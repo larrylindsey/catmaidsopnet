@@ -33,6 +33,7 @@ private:
 	pipeline::Input<SliceStore> _sliceStore;
 	pipeline::Input<Box<> > _box;
 	pipeline::Input<BlockManager> _blockManager;
+	pipeline::Input<bool> _forceExplanation;
 	
 	pipeline::Output<SegmentStoreResult> _result;
 	

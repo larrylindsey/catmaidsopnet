@@ -12,7 +12,7 @@ util::ProgramOption optionRandomForestFileBlock(
 
 CoreSolver::CoreSolver() :
 	_problemAssembler(boost::make_shared<ProblemAssembler>()),
-	_constraintExtractor(boost::make_shared<ConsistencyConstraintExtractor>()),
+	_componentTreeExtractor(boost::make_shared<ComponentTreeExtractor>()),
 	_randomForestHDF5Reader(
 		boost::make_shared<RandomForestHdf5Reader>(optionRandomForestFileBlock.as<std::string>())),
 	_reconstructor(boost::make_shared<Reconstructor>()),
@@ -63,17 +63,15 @@ CoreSolver::updateOutputs()
 	
 	_rawImageStackReader->setInput("factory", _rawImageFactory);
 	
-	
-	
-	
-	_constraintExtractor->setInput("slices", _sliceReader->getOutput("slices"));
-	_constraintExtractor->setInput("segments", _segmentReader->getOutput("segments"));
-	_constraintExtractor->setInput("force explanation", _forceExplanation);
-	_constraintExtractor->setInput("component trees", _sliceReader->getOutput("component trees"));
+	_componentTreeExtractor->setInput("slices", _sliceReader->getOutput("slices"));
+	_componentTreeExtractor->setInput("segments", _segmentReader->getOutput("segments"));
+	_componentTreeExtractor->setInput("blocks", _blocks);
+	_componentTreeExtractor->setInput("store", _sliceStore);
+	_componentTreeExtractor->setInput("force explanation", _forceExplanation);
 	
 	_problemAssembler->addInput("segments", _segmentReader->getOutput("segments"));
 	_problemAssembler->addInput("linear constraints",
-								_constraintExtractor->getOutput("linear constraints"));
+								_componentTreeExtractor->getOutput("linear constraints"));
 	
 	// Use problem assembler output to compute the bounding box we need to contain all
 	// of the slices that are present. This will usually be larger than the requested

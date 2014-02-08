@@ -78,6 +78,23 @@ void SegmentGuarantor::guaranteeSegments(
 			boost::shared_ptr<Slices> prevSlices = collectSlicesByZ(slices, z);
 			boost::shared_ptr<Slices> nextSlices = collectSlicesByZ(slices, z + 1);
 			
+			foreach (boost::shared_ptr<Slice> slice, *prevSlices)
+			{
+				LOG_DEBUG(segmentguarantorlog) << "Slice " << slice->getId() << " has conflicts in prev:";
+				foreach (unsigned int conflictId, prevSlices->getConflicts(slice->getId()))
+				{
+					LOG_DEBUG(segmentguarantorlog) << " " << conflictId;
+				}
+				LOG_DEBUG(segmentguarantorlog) << std::endl;
+				
+				LOG_DEBUG(segmentguarantorlog) << "Slice " << slice->getId() << " has conflicts in conf:";
+				foreach (unsigned int conflictId, slices->getConflicts(slice->getId()))
+				{
+					LOG_DEBUG(segmentguarantorlog) << " " << conflictId;
+				}
+				LOG_DEBUG(segmentguarantorlog) << std::endl;
+			}
+			
 			extractor->setInput("previous slices", prevSlices);
 			extractor->setInput("next slices", nextSlices);
 			

@@ -63,10 +63,8 @@ private:
 	pipeline::Input<MserParameters> _mserParameters;
 	pipeline::Input<SliceStore> _sliceStore;
 	pipeline::Input<ImageBlockFactory> _blockFactory;
-	pipeline::Input<Box<> > _box;
-	pipeline::Input<bool> _forceExplanation;
 	pipeline::Input<unsigned int> _maximumArea;
-	pipeline::Input<BlockManager> _blockManager;
+	pipeline::Input<Blocks> _blocks;
 	
 	pipeline::Output<Blocks> _neighborBlocks;
 	pipeline::Output<SliceStoreResult> _count;

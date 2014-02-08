@@ -28,6 +28,20 @@ void SliceReader::onBlocksSet(const pipeline::InputSetBase& )
 	setInput("block manager", _blocks->getManager());
 }
 
+void
+SliceReader::addUnique(const boost::shared_ptr<Slices>& inSlices,
+					   const boost::shared_ptr<Slices>& recvSlices,
+					   boost::unordered::unordered_set<Slice>& set)
+{
+	foreach (const boost::shared_ptr<Slice>& slice, *inSlices)
+	{
+		if (!set.count(*slice))
+		{
+			set.insert(*slice);
+			recvSlices->add(slice);
+		}
+	}
+}
 
 
 void SliceReader::updateOutputs()
@@ -60,14 +74,7 @@ void SliceReader::updateOutputs()
 	foreach (boost::shared_ptr<Block> block, *blocks)
 	{
 		boost::shared_ptr<Slices> blockSlices = _store->retrieveSlices(block);
-		foreach (boost::shared_ptr<Slice> slice, *blockSlices)
-		{
-			if (!sliceSet.count(*slice))
-			{
-				slices->add(slice);
-				sliceSet.insert(*slice);
-			}
-		}
+		addUnique(blockSlices, slices, sliceSet);
 	}
 	
 	// In addition to the Slices contained in this block, fetch any Slice that is a descendant of
@@ -86,7 +93,8 @@ void SliceReader::updateOutputs()
 		LOG_DEBUG(slicereaderlog) << "Got " << childSlices->size() << " kids." << std::endl;
 		
 		fullHouse = childSlices->size() == 0;
-		slices->addAll(*childSlices);
+		
+		addUnique(childSlices, slices, sliceSet);
 		parentSlices = childSlices;
 	}
 	

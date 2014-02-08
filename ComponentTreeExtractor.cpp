@@ -45,6 +45,8 @@ ComponentTreeExtractor::updateOutputs()
 	*_componentTrees = *trees;
 	*_slicesOut = *_slices;
 	
+	LOG_DEBUG(componenttreeextractorlog) << "Generated " << constraints->size() <<
+		" constraints" << std::endl;
 }
 
 
@@ -110,8 +112,13 @@ ComponentTreeExtractor::addNode(const boost::shared_ptr<ComponentTree::Node>& no
 	bool addConflict = true;
 	
 	slice_ids.push_back(slice->getId());
+	
+	boost::shared_ptr<Slices> children = _store->getChildren(slice);
+	
+	LOG_DEBUG(componenttreeextractorlog) << "Found " << children->size() <<
+		" children for slice " << slice->getId() << std::endl;
 
-	foreach (boost::shared_ptr<Slice> childSlice, *(_store->getChildren(slice)))
+	foreach (boost::shared_ptr<Slice> childSlice, *children)
 	{
 		if (sliceSet.count(*childSlice))
 		{

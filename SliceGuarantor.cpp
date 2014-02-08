@@ -362,6 +362,8 @@ SliceGuarantor::collectDescendants(const boost::shared_ptr<Slices>& slices,
 			getChildren(componentSliceMap, node, descendants);
 		}
 	}
+	
+	return descendants;
 }
 
 void

@@ -9,11 +9,17 @@
 /**
  * Database abstraction for image stacks.
  */
-class StackStore : public pipeline::Data {
-
+class StackStore : public pipeline::Data
+{
 public:
-
-	virtual pipeline::Value<ImageStack> getImageStack(const Box<>& box) = 0;
+	virtual pipeline::Value<ImageStack> getImageStack(const Box<>& box);
+	
+protected:
+	
+	virtual boost::shared_ptr<Image> getImage(const util::rect<unsigned int> bound,
+											  const unsigned int section) = 0;
+	
+	
 };
 
 #endif // SOPNET_CATMAIDSOPNET_PERSISTENCE_STACK_STORE_H__

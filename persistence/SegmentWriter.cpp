@@ -3,9 +3,8 @@
 SegmentWriter::SegmentWriter()
 {
 	registerInput(_segments, "segments");
-	registerInput(_box, "box");
+	registerInput(_blocks, "blocks");
 	registerInput(_store, "store");
-	registerInput(_blockManager, "block manager");
 	
 	registerOutput(_result, "count");
 }
@@ -13,10 +12,9 @@ SegmentWriter::SegmentWriter()
 
 void SegmentWriter::updateOutputs()
 {
-	boost::shared_ptr<Blocks> blocks = _blockManager->blocksInBox(_box);
 	boost::shared_ptr<SegmentStoreResult> result = boost::make_shared<SegmentStoreResult>();
 	
-	foreach(boost::shared_ptr<Block> block, *blocks)
+	foreach(boost::shared_ptr<Block> block, *_blocks)
 	{
 		foreach (boost::shared_ptr<Segment> segment, _segments->getSegments())
 		{

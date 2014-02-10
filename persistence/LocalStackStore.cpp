@@ -15,12 +15,12 @@ LocalStackStore::LocalStackStore(std::string directory)
 
 	if (!boost::filesystem::exists(dir))
 	{
-		BOOST_THROW_EXCEPTION(IOError() << error_message(_directory + " does not exist"));
+		BOOST_THROW_EXCEPTION(IOError() << error_message(directory + " does not exist"));
 	}
 
 	if (!boost::filesystem::is_directory(dir))
 	{
-		BOOST_THROW_EXCEPTION(IOError() << error_message(_directory + " is not a directory"));
+		BOOST_THROW_EXCEPTION(IOError() << error_message(directory + " is not a directory"));
 	}
 
 	std::copy(
@@ -40,7 +40,7 @@ boost::shared_ptr<Image> LocalStackStore::getImage(util::rect<unsigned int> boun
 	if (section < _imagePaths.size())
 	{
 		boost::filesystem::path file = _imagePaths[section];
-		boost::shared_ptr<ImageFileReader> reader = boost::make_shared<ImageFileReader>(file);
+		boost::shared_ptr<ImageFileReader> reader = boost::make_shared<ImageFileReader>(file.c_str());
 		boost::shared_ptr<ImageCrop> cropper = boost::make_shared<ImageCrop>();
 		pipeline::Value<Image> croppedImage, image;
 		pipeline::Value<int> x(bound.minX), y(bound.minY),

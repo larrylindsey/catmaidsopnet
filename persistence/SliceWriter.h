@@ -17,6 +17,8 @@ public:
 	void writeSlices();
 	
 private:
+	
+	void updateOutputs(){}
 
 	void assignParents(ComponentSliceMap& componentSliceMap,
 					   const boost::shared_ptr<ComponentTree::Node>& node);

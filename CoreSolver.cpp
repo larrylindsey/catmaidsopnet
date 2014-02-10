@@ -12,9 +12,7 @@ util::ProgramOption optionRandomForestFileBlock(
 
 CoreSolver::CoreSolver() :
 	_problemAssembler(boost::make_shared<ProblemAssembler>()),
-	_componentTreeExtractor(boost::make_shared<ComponentTreeExtractor>()),
-	_randomForestHDF5Reader(
-		boost::make_shared<RandomForestHdf5Reader>(optionRandomForestFileBlock.as<std::string>())),
+	_componentTreeExtractor(boost::make_shared<ComponentTreeExtractor>()),	
 	_reconstructor(boost::make_shared<Reconstructor>()),
 	_linearSolver(boost::make_shared<LinearSolver>()),
 	_neuronExtractor(boost::make_shared<NeuronExtractor>()),
@@ -22,11 +20,13 @@ CoreSolver::CoreSolver() :
 	_sliceReader(boost::make_shared<SliceReader>()),
 	_priorCostFunction(boost::make_shared<PriorCostFunction>()),
 	_segmentationCostFunction(boost::make_shared<SegmentationCostFunction>()),
+	_randomForestHDF5Reader(
+		boost::make_shared<RandomForestHdf5Reader>(optionRandomForestFileBlock.as<std::string>())),
 	_rawImageStackReader(boost::make_shared<ImageBlockStackReader>()),
 	_membraneStackReader(boost::make_shared<ImageBlockStackReader>()),
 	_randomForestCostFunction(boost::make_shared<RandomForestCostFunction>()),
-	_objectiveGenerator(boost::make_shared<ObjectiveGenerator>()),
-	_segmentFeaturesExtractor(boost::make_shared<SegmentFeaturesExtractor>())
+	_segmentFeaturesExtractor(boost::make_shared<SegmentFeaturesExtractor>()),
+	_objectiveGenerator(boost::make_shared<ObjectiveGenerator>())
 {
 	registerInput(_priorCostFunctionParameters, "prior cost parameters");
 	registerInput(_blocks, "blocks");
@@ -150,7 +150,7 @@ CoreSolver::computeBound()
 		box = boost::make_shared<Box<> >(bound, _blocks->location().z, _blocks->size().z);
 		
 		boundBlocks = _blocks->getManager()->blocksInBox(box);
-		boundBlocks->expand(util::ptrTo(0,0,1));
+		boundBlocks->expand(util::point3<int>(0,0,1));
 		return boundBlocks;
 	}
 	else

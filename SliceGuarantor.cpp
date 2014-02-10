@@ -1,315 +1,282 @@
 #include "SliceGuarantor.h"
 
+#include <map>
+#include <set>
 #include <imageprocessing/ImageExtractor.h>
 #include <sopnet/sopnet/slices/SliceExtractor.h>
 #include <sopnet/sopnet/slices/Slice.h>
 #include <util/rect.hpp>
 #include <util/Logger.h>
+#include <util/foreach.h>
 #include <pipeline/Value.h>
 
 logger::LogChannel sliceguarantorlog("sliceguarantorlog", "[SliceGuarantor] ");
 
+using std::vector;
+using boost::shared_ptr;
+using boost::make_shared;
+using std::map;
+using std::set;
+
 SliceGuarantor::SliceGuarantor()
 {
 	registerInput(_blocks, "blocks");
-	registerInput(_sliceStore, "store");	
-	registerInput(_blockFactory, "block factory");
-	registerInput(_maximumArea, "maximum area");
+	registerInput(_sliceStore, "slice store");
+	registerInput(_stackStore, "stack store");
+	registerInput(_maximumArea, "maximum area", pipeline::Optional);
 	registerInput(_mserParameters, "mser parameters", pipeline::Optional);
 
-	registerOutput(_count, "count");
-}
-
-void
-SliceGuarantor::guaranteeSlices() {
-
-	updateInputs();
-	extractSlices();
+	registerOutput(_needBlocks, "image blocks");
 }
 
 void
 SliceGuarantor::updateOutputs()
 {
-	SliceStoreResult result = extractSlices();
-
-	*_count = result;
+	*_needBlocks = *guaranteeSlices();
 }
 
-SliceStoreResult
-SliceGuarantor::extractSlices() {
-
-	// We're given a Box. Find all Blocks overlapping that Box.
-	boost::shared_ptr<BlockManager> blockManager = _blocks->getManager();
-	boost::shared_ptr<Blocks> guaranteeBlocks = _blocks;
-	boost::shared_ptr<SliceStoreResult> count = boost::make_shared<SliceStoreResult>();
+/**
+ * Checks whether slices have already been extracted for our Block request.
+ */
+bool
+SliceGuarantor::checkSlices()
+{
 	bool slicesExtracted = true;
 
-	// Expand in z. Segment guarantor needs +z boundary, if it exists.
-	guaranteeBlocks->expand(util::ptrTo(0, 0, 1));
-	
-	LOG_DEBUG(sliceguarantorlog) << "Asked to guarantee " << guaranteeBlocks->length() << " blocks." << std::endl;
-	LOG_DEBUG(sliceguarantorlog) << "Request size: " << _blocks->size() << std::endl;
-	LOG_DEBUG(sliceguarantorlog) << "Guarantee size: " << guaranteeBlocks->size()<< std::endl;
-	
 	// Check to see whether each block in guaranteeBlocks has already had its slices extracted.
 	// If this is the case, we have no work to do
-	foreach (boost::shared_ptr<Block> block, *guaranteeBlocks)
+	foreach (boost::shared_ptr<Block> block, *_blocks)
 	{
-		slicesExtracted &= block->setSlicesFlag(true);
+		slicesExtracted &= block->getSlicesFlag();
 	}
 	
+	return slicesExtracted;
 	
-	if (slicesExtracted)
-	{
-		LOG_DEBUG(sliceguarantorlog) << "All blocks have already been extracted" << std::endl;
-		return;
-	}
-	
-	LOG_DEBUG(sliceguarantorlog) << "The given blocks have not yet had slices extracted" <<
-		std::endl;
-	LOG_DEBUG(sliceguarantorlog) << "Init'ing local variables" << std::endl;
-	
-	bool guaranteed = false;
-	int extractArea;
-	
-	// Extract blocks is a superset of guarantee blocks.
-	boost::shared_ptr<Blocks> extractBlocks = boost::make_shared<Blocks>(guaranteeBlocks);
-
-	// Slices and ComponentTrees extracted from the image underlying the requested area.
-	boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();
-	boost::shared_ptr<ComponentTrees> trees = boost::make_shared<ComponentTrees>();
-
-	// Assume that some Slice's will overlap the guarantee box's boundary, so dilate.
-	extractBlocks->dilateXY();
-	extractArea = extractBlocks->size().x * extractBlocks->size().y;
-	
-	LOG_DEBUG(sliceguarantorlog) << "Extract area " << extractArea << ". Maximum area " <<
-		*_maximumArea << std::endl;
-
-
-	// Extract slices from the extract area.
-	// The extract area is expanded until all Slice's extracted from the guarantee area are
-	// whole.
-
-	while (!guaranteed && extractBlocks->size().x * extractBlocks->size().y < *_maximumArea)
-	{
-		slices->clear();
-		trees->clear();
-		
-		LOG_DEBUG(sliceguarantorlog) << "Extracting from box at " << extractBlocks->location()
-			<< " with size " << extractBlocks->size() << std::endl;
-		guaranteed = guaranteeSlices(extractBlocks, guaranteeBlocks, slices, trees);
-		if (guaranteed)
-		{
-			LOG_DEBUG(sliceguarantorlog) << "success!" << std::endl;
-		}
-		else
-		{
-			LOG_DEBUG(sliceguarantorlog) <<
-				"There were unwhole slices in the guarantee box. Trying again" << std::endl;
-		}
-	}
-
-	// If the extract area is grel maximumArea, then we probably have some not-fully-extracted
-	// Slice's, so tell the user about it.
-	if (extractBlocks->size().x * extractBlocks->size().y >= *_maximumArea)
-	{
-		LOG_ERROR(sliceguarantorlog) << "Extraction size " << extractBlocks->size() <<
-			" has a greater area than the maximum " << *_maximumArea <<
-			". Some large Slices have not been fully extracted." << std::endl;
-	}
-	
-	// Write the slices to the store.
-	count = writeSlices(guaranteeBlocks, extractBlocks, slices, trees);
-	
-	LOG_DEBUG(sliceguarantorlog) << "Wrote " << count->count << " slices total" << std::endl;
-	*_count = *count;
 }
 
-void
-SliceGuarantor::writeSlices(const boost::shared_ptr<Blocks> guaranteeBlocks,
-							const boost::shared_ptr<Blocks> extractBlocks,
-							const boost::shared_ptr<Slices> slices,
-							const boost::shared_ptr<LinearConstraints> conflictSets)
+bool
+SliceGuarantor::sizeOk(util::point3<unsigned int> size)
 {
-	//TODO: Consider migrating this behavior to the SliceWriter.
-	// * possible to reduce the number of db hits
-	// * it seems philosophically "cleaner" to move the nitty-gritty of slice storage to the class
-	//      that handles it.
-	
-	// Slice and LinearConstraints persistence.
+	if (_maximumArea)
+	{
+		return size.x * size.y < *_maximumArea;
+	}
+	else
+	{
+		return true;
+	}
+}
+
+
+pipeline::Value<Blocks>
+SliceGuarantor::guaranteeSlices()
+{
+	pipeline::Value<Blocks> extractBlocks = pipeline::Value<Blocks>();
+	pipeline::Value<Slices> slices = pipeline::Value<Slices>();
+	pipeline::Value<ConflictSets> conflictSets = pipeline::Value<ConflictSets>();
 	boost::shared_ptr<SliceWriter> sliceWriter = boost::make_shared<SliceWriter>();
 	
-	// A collection of slices that overlap the guarantee blocks. Used in a later step.
-	boost::shared_ptr<Slices> guaranteeBlockSlices = boost::make_shared<Slices>();
-	// The whole "family" of the above slices, also used later.
-	boost::shared_ptr<Slices> sliceFamily;
+	updateInputs();
 	
+	if (checkSlices())
+	{
+		LOG_DEBUG(sliceguarantorlog) << "All blocks have already been extracted" << std::endl;
+		return extractBlocks;
+	}
 	
-	/*
-	 * write slices in two steps
-	 * 1) Write the slices that overlap any of the gauranteeBlocks
-	 * 2) Write the slices that are descendants of those in step 1, that
-	 *    were not written during step 1.
-	 */
+	LOG_ALL(sliceguarantorlog) << "The given blocks have not yet had slices extracted" <<
+		std::endl;
+
+	// Slices and ConflictSets extracted from the image underlying the requested area.
+	// This is done section-by-section, so a vector is used in order to make it easier
+	// to multi-thread this later.
 	
+	// extracted Slices.
+	vector<shared_ptr<Slices> > slicesVector(_blocks->size().z);
+	// extracted conflict sets
+	vector<shared_ptr<ConflictSets> > conflictSetsVector(_blocks->size().z); 
+	
+	// This isn't *really* true.
+	bool allBad = true;
+
+	// Extract slices independently by z.
+	for (unsigned int i = 0; i < _blocks->size().z; ++i)
+	{
+		unsigned int z = i + _blocks->location().z;
+		shared_ptr<Slices> zSlices = make_shared<Slices>();
+		shared_ptr<ConflictSets> zConflict = make_shared<ConflictSets>();
+		shared_ptr<Blocks> zBlocks = make_shared<Blocks>();
+		
+		allBad = !extractSlices(z, zSlices, zConflict, zBlocks) && allBad;
+		
+		slicesVector[i] = zSlices;
+		conflictSetsVector[i] = zConflict;
+		
+		extractBlocks->addAll(zBlocks);
+	}
+
+	// If all sections yielded empty images, then we need to regenerate the image stack.
+	if (allBad)
+	{
+		return extractBlocks;
+	}
+	
+	for (unsigned int i = 0; i < _blocks->size().z; ++i)
+	{
+		slices->addAll(*slicesVector[i]);
+		conflictSets->addAll(*conflictSetsVector[i]);
+	}
+	
+	sliceWriter->setInput("blocks", extractBlocks);
+	sliceWriter->setInput("slices", slices);
+	sliceWriter->setInput("conflict sets", conflictSets);
 	sliceWriter->setInput("store", _sliceStore);
 	
-	// Write the Slices in the guarantee blocks to the store.
-	foreach (boost::shared_ptr<Block> block, *guaranteeBlocks)
-	{
-		writeSlicesHelper(block, slices, conflictSets, sliceWriter, guaranteeBlockSlices);
-	}
-	
-	// Collect the descendants of the slices we just wrote, and write them to the store,
-	// regardless of whether they are in the guarantee blocks.
-	sliceFamily = collectDescendants(guaranteeBlockSlices, conflictSets);
-	
-	foreach (boost::shared_ptr<Block> block, *extractBlocks)
-	{
-		if (!guaranteeBlocks->contains(block))
-		{
-			boost::shared_ptr<Slices> emptySlices;
-			writeSlicesHelper(block, sliceFamily, conflictSets, sliceWriter, emptySlices);
-		}
-		
-	}
-}
-
-
-void SliceGuarantor::writeSlicesHelper(const boost::shared_ptr<Block> block,
-									   const boost::shared_ptr<Slices> slices,
-									   const boost::shared_ptr<LinearConstraints> conflictSets,
-									   const boost::shared_ptr<SliceWriter> sliceWriter,
-									   const boost::shared_ptr<Slices> writtenSlices)
-{
-	// Value used to force updateOutputs on the slice writer.
-	pipeline::Value<SliceStoreResult> sliceWriteCount;
-	LOG_ALL(sliceguarantorlog) << "Collecting slices assocated with block at location "
-		<< block->location() << std::endl;
-	boost::shared_ptr<Slices> blockSlices = boost::make_shared<Slices>();
-	
-	// Collect only the slices that overlap the guarantee box.
-	
-	foreach(boost::shared_ptr<Slice> slice, *slices)
-	{
-		if (block->overlaps(slice->getComponent()))
-		{
-			blockSlices->add(slice);
-			if (writtenSlices)
-			{
-				writtenSlices->add(slice);
-			}
-		}
-	}
-	
-	sliceWriter->setInput("slices", blockSlices);
-
-	sliceWriter->setInput("block", block);
-
-	// Force sliceWriter to run updateOutputs
 	sliceWriter->writeSlices();
 	
-	
-	LOG_ALL(sliceguarantorlog) << "Wrote " << sliceWriteCount->count << " slices to Block" <<
-		std::endl;
+	return pipeline::Value<Blocks>();
 }
 
-void
-SliceGuarantor::guaranteeSlices(const boost::shared_ptr<Blocks> extractBlocks,
-								const boost::shared_ptr<Blocks> guaranteeBlocks,
-								const boost::shared_ptr<Slices> guaranteeSlices,
-								const boost::shared_ptr<LinearConstraints> constraints)
+bool
+SliceGuarantor::extractSlices(const unsigned int z,
+							  const shared_ptr<Slices> slices,
+							  const shared_ptr<ConflictSets> conflictSets,
+							  const shared_ptr<Blocks> extractBlocks)
 {
-	LOG_DEBUG(sliceguarantorlog) << "Setting up mini pipeline" << std::endl;
-
-	int zMin = extractBlocks->location().z;
+	LOG_ALL(sliceguarantorlog) << "Setting up mini pipeline" << std::endl;
+	shared_ptr<Blocks> nbdBlocks;	
 	
-	boost::shared_ptr<ImageExtractor> sliceImageExtractor = boost::make_shared<ImageExtractor>();
-	boost::shared_ptr<ImageBlockStackReader> stackReader = boost::make_shared<ImageBlockStackReader>();
-	boost::shared_ptr<Blocks> nbdBlocks = boost::make_shared<Blocks>(extractBlocks);
-	util::point<int> translate(extractBlocks->location().x, extractBlocks->location().y);
-	
-	constraints->clear();
-	guaranteeSlices->clear();
-	
-	stackReader->setInput("block", extractBlocks);
-	stackReader->setInput("factory", _blockFactory);
+	bool okSlices = false;
+	shared_ptr<SliceExtractor<unsigned char> > sliceExtractor =
+		make_shared<SliceExtractor<unsigned char> >(z);
 
-	sliceImageExtractor->setInput("stack", stackReader->getOutput());
+	pipeline::Value<Slices> slicesValue;
+	pipeline::Value<ConflictSets> conflictValue;
+	
+	extractBlocks->addAll(_blocks);
+	// Dilate once beforehand.
+	extractBlocks->dilateXY();
 
-	// Collect all Slice's
-	for (unsigned int i = 0; i < extractBlocks->size().z; ++i)
+	sliceExtractor->setInput("force explanation", pipeline::Value<bool>(true));
+
+	while (!okSlices && sizeOk(extractBlocks->size()))
 	{
-		unsigned int z = i + zMin;
-		boost::shared_ptr<ProcessNode> sliceExtractor =
-			boost::make_shared<SliceExtractor<unsigned char> >(z);
-		boost::shared_ptr<Slices> guaranteedSlices;
-		pipeline::Value<Slices> extractedSlices;
-		pipeline::Value<ComponentTree> valueTree;
-		pipeline::Value<LinearConstraints> sliceConflictSets;
-		boost::shared_ptr<pipeline::Wrap<bool> > yep =
-			boost::make_shared<pipeline::Wrap<bool> >(true);
+		util::rect<unsigned int> bound = *extractBlocks;
+		util::point<int> translate(extractBlocks->location().x, extractBlocks->location().y);
+		Box<> box(bound, z, 1);
+		shared_ptr<Image> image = (*_stackStore->getImageStack(box))[0];
+		
+		if (image->width() * image->height() == 0)
+		{
+			return false;
+		}
+		
+		nbdBlocks = make_shared<Blocks>(_blocks);
 
-		sliceExtractor->setInput("membrane", sliceImageExtractor->getOutput(i));
-		sliceExtractor->setInput("force explanation", yep);
+		sliceExtractor->setInput("membrane", image);
 
 		if (_mserParameters)
 		{
 			sliceExtractor->setInput("mser parameters", _mserParameters);
 		}
+			
+		slicesValue = sliceExtractor->getOutput("slices");
+		conflictValue = sliceExtractor->getOutput("conflict sets");
 		
-		extractedSlices = sliceExtractor->getOutput("slices");
-		sliceConflictSets = sliceExtractor->getOutput("linear constraints");
-		
-		LOG_DEBUG(sliceguarantorlog) << "Extracted " << extractedSlices->size() << " slices" << std::endl;
+		LOG_DEBUG(sliceguarantorlog) << "Extracted " << slicesValue->size() << " slices" << std::endl;
 		
 		// Slices are extracted in [0 0 w h]. Translate them to Box coordinates.
-		LOG_DEBUG(sliceguarantorlog) << "Translating slices to request coordinates" << std::endl;
-		foreach(boost::shared_ptr<Slice> slice, *extractedSlices)
+		LOG_ALL(sliceguarantorlog) << "Translating slices to request coordinates" << std::endl;
+		foreach(boost::shared_ptr<Slice> slice, *slicesValue)
 		{
 			slice->translate(translate);
-
-			if (guaranteeBlocks->overlaps(slice->getComponent()))
+			if (_blocks->overlaps(slice->getComponent()))
 			{
-				guaranteeSlices->add(slice);
+				checkWhole(slice, extractBlocks, nbdBlocks);
 			}
 		}
 		
+		if (!(okSlices = extractBlocks->size() == nbdBlocks->size()))
+		{
+			extractBlocks->addAll(nbdBlocks);
+		}
 	}
 	
-	LOG_DEBUG(sliceguarantorlog) << "Checking " << guaranteeSlices->size() << " slices for wholeness" <<
-		std::endl;
-	foreach(boost::shared_ptr<Slice> slice, *guaranteeSlices)
+	conflictSets->addAll(*conflictValue);
+	collectOutputSlices(slicesValue, conflictValue, slices);
+	
+	return true;
+}
+
+/**
+ * Collect all of the Slice's that we need to store from extractedSlices and put
+ * them into slices.
+ */
+void
+SliceGuarantor::collectOutputSlices(pipeline::Value<Slices>& extractedSlices,
+								   pipeline::Value<ConflictSets>& extractedConflict,
+								   const shared_ptr<Slices>& slices)
+{
+	map<unsigned int, boost::shared_ptr<Slice> > idSliceMap;
+	set<unsigned int> idSet;
+	// Must be separate from idSet to avoid problems with the possibility of multiply-overlapping
+	// conflict sets.
+	set<unsigned int> conflictCliqueIdSet;
+	
+	// Collection in two steps:
+	// 1) Find all Slice's that overlap the guarantee blocks
+	// 2) Find all Slice's that are in a conflict set with any of the Slice's found in (1)
+	
+	foreach (boost::shared_ptr<Slice> slice, *extractedSlices)
 	{
-		checkWhole(slice, extractBlocks, nbdBlocks);
+		// Map slice id to slice object
+		idSliceMap[slice->getId()] = slice;
+		
+		// If the slice overlaps the guarantee blocks, add it to the set
+		if (_blocks->overlaps(slice->getComponent()))
+		{
+			idSet.insert(slice->getId());
+		}
 	}
 	
-	util::point3<unsigned int> nbdSize = nbdBlocks->size();
-	util::point3<unsigned int> extractSize = extractBlocks->size();
-	
-	if (nbdSize.x > extractSize.x || nbdSize.y > extractSize.y)
+	foreach (const ConflictSet conflictSet, *extractedConflict)
 	{
-		LOG_DEBUG(sliceguarantorlog) << "Need to expand to at least " << nbdSize <<
-			" in order to extract whole slices" << std::endl;
-		extractBlocks->addAll(nbdBlocks->getBlocks());
-		return false;
+		// If the conflictSet contains any of the id's, add all of them to the conflictCliqueIdSet
+		if (containsAny(conflictSet, idSet))
+		{
+			conflictCliqueIdSet.insert(conflictSet.getSlices().begin(),
+									   conflictSet.getSlices().end());
+		}
 	}
-	else
+	
+	// Merge the sets.
+	idSet.insert(conflictCliqueIdSet.begin(), conflictCliqueIdSet.end());
+	
+	foreach (unsigned int id, idSet)
 	{
-		LOG_DEBUG(sliceguarantorlog) << "We're done!" << std::endl;
-		return true;
+		slices->add(idSliceMap[id]);
 	}
 }
 
+bool
+SliceGuarantor::containsAny(const ConflictSet& conflictSet, const std::set<unsigned int>& idSet)
+{
+	foreach (const unsigned int id, conflictSet.getSlices())
+	{
+		if (idSet.count(id))
+		{
+			return true;
+		}
+	}
+	
+	return false;
+}
 
 void
 SliceGuarantor::checkWhole(const boost::shared_ptr<Slice>& slice,
 						   const boost::shared_ptr<Blocks>& extractBlocks,
 						   const boost::shared_ptr<Blocks>& nbdBlocks) const
 {
-	//TODO: figure out the best way to maintain a map from a slice to its bordering Blocks.
-	// Check whether the slice's bounding box touches the Block boundary
 	util::rect<unsigned int> sliceBound = slice->getComponent()->getBoundingBox();
 	
 	point3<unsigned int> blockLocation = extractBlocks->location();
@@ -318,80 +285,27 @@ SliceGuarantor::checkWhole(const boost::shared_ptr<Slice>& slice,
 	if (sliceBound.minX <= blockLocation.x)
 	{
 		Blocks expandBlocks = Blocks(*extractBlocks);
-		expandBlocks.expand(util::ptrTo(-1, 0, 0));
+		expandBlocks.expand(util::point3<int>(-1, 0, 0));
 		nbdBlocks->addAll(expandBlocks.getBlocks());
 	}
 	else if (sliceBound.maxX >= blockLocation.x + blockSize.x - 1)
 	{
 		Blocks expandBlocks = Blocks(*extractBlocks);
-		expandBlocks.expand(util::ptrTo(1, 0, 0));
+		expandBlocks.expand(util::point3<int>(1, 0, 0));
 		nbdBlocks->addAll(expandBlocks.getBlocks());
 	}
 	
 	if (sliceBound.minY <= blockLocation.y)
 	{
 		Blocks expandBlocks = Blocks(*extractBlocks);
-		expandBlocks.expand(util::ptrTo(0, -1, 0));
+		expandBlocks.expand(util::point3<int>(0, -1, 0));
 		nbdBlocks->addAll(expandBlocks.getBlocks());
 	}
 	else if (sliceBound.maxY >= blockLocation.y + blockSize.y - 1)
 	{
 		Blocks expandBlocks = Blocks(*extractBlocks);
-		expandBlocks.expand(util::ptrTo(0, 1, 0));
+		expandBlocks.expand(util::point3<int>(0, 1, 0));
 		nbdBlocks->addAll(expandBlocks.getBlocks());
 	}
-
 }
-
-
-boost::shared_ptr<Slices>
-SliceGuarantor::collectDescendants(const boost::shared_ptr<Slices>& slices,
-								   const boost::shared_ptr<ComponentTrees>& trees)
-{
-	ComponentSliceMap componentSliceMap;
-	ComponentTrees::iterator ctit;
-	
-	boost::shared_ptr<Slices> descendants = boost::make_shared<Slices>();
-
-	descendants->addAll(*slices);
-	
-	foreach (boost::shared_ptr<Slice> slice, *slices)
-	{
-		componentSliceMap[*(slice->getComponent())] = slice;
-	}
-	
-	for (ctit = trees->begin(); ctit != trees->end(); ++ctit)
-	{
-		boost::shared_ptr<ComponentTree::Node> rootNode = ctit->second->getRoot();
-		
-		foreach (boost::shared_ptr<ComponentTree::Node> node, rootNode->getChildren())
-		{
-			getChildren(componentSliceMap, node, descendants);
-		}
-	}
-	
-	return descendants;
-}
-
-void
-SliceGuarantor::getChildren(SliceGuarantor::ComponentSliceMap& componentSliceMap,
-							const boost::shared_ptr<ComponentTree::Node>& node,
-							const boost::shared_ptr<Slices>& descendants)
-{
-	boost::shared_ptr<Slice> parentSlice = componentSliceMap[*(node->getComponent())];
-	
-	if (parentSlice)
-	{
-		foreach (boost::shared_ptr<ComponentTree::Node> childNode, node->getChildren())
-		{
-			boost::shared_ptr<Slice> childSlice = componentSliceMap[*(childNode->getComponent())];
-			if (childSlice)
-			{
-				descendants->add(childSlice);
-				getChildren(componentSliceMap, childNode, descendants);
-			}
-		}
-	}
-}
-
 

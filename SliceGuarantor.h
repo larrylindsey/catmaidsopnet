@@ -6,10 +6,12 @@
 
 #include <catmaidsopnet/persistence/SliceWriter.h>
 #include <catmaidsopnet/persistence/SliceStore.h>
+#include <catmaidsopnet/persistence/StackStore.h>
 #include <sopnet/sopnet/block/Box.h>
 #include <sopnet/sopnet/block/Blocks.h>
 #include <pipeline/all.h>
-#include <imageprocessing/ComponentTrees.h>
+#include <pipeline/Value.h>
+#include <sopnet/slices/ConflictSets.h>
 #include <imageprocessing/io/ImageBlockStackReader.h>
 #include <imageprocessing/io/ImageBlockFactory.h>
 #include <imageprocessing/MserParameters.h>
@@ -39,45 +41,35 @@ public:
 
 	/**
 	 * Makes sure the inputs are up-to-date and extracts the slices for the 
-	 * requested blocks.
+	 * requested blocks. Returns empty Blocks for success. If extraction
+	 * was not possible, Blocks in the output will indicate those for
+	 * which it failed. Typically, this means that not all images were available in
+	 * the given Blocks.
 	 */
-	void guaranteeSlices();
+	pipeline::Value<Blocks> guaranteeSlices();
 
 private:
 	
 	void updateOutputs();
-
-	SliceStoreResult extractSlices();
 	
-	bool guaranteeSlices(const boost::shared_ptr<Blocks>& extractBlocks,
-						 const boost::shared_ptr<Blocks>& guaranteeBlocks,
-						 const boost::shared_ptr<Slices>& slices,
-						 const boost::shared_ptr<ComponentTrees>& trees);
+	bool checkSlices();
 	
-	boost::shared_ptr<SliceStoreResult> writeSlices(
-		const boost::shared_ptr<Blocks>& guaranteeBlocks,
-		const boost::shared_ptr<Blocks>& extractBlocks,
-		const boost::shared_ptr<Slices>& slices,
-		const boost::shared_ptr<ComponentTrees>& trees);
+	bool sizeOk(util::point3<unsigned int> size);
 	
-	void writeSlicesHelper(const boost::shared_ptr<Block>& block,
-									   const boost::shared_ptr<Slices>& slices,
-									   const boost::shared_ptr<ComponentTrees>& trees,
-									   const boost::shared_ptr<SliceWriter>& sliceWriter,
-									   const boost::shared_ptr<Slices>& writtenSlices,
-									   const boost::shared_ptr<SliceStoreResult>& count);
+	void collectOutputSlices(pipeline::Value<Slices>& extractedSlices,
+							pipeline::Value<ConflictSets>& extractedConflict,
+							const boost::shared_ptr<Slices>& slices);
 	
-	boost::shared_ptr<Slices> collectDescendants(const boost::shared_ptr<Slices>& slices,
-												 const boost::shared_ptr<ComponentTrees>& trees);
+	bool extractSlices(const unsigned int z,
+							  const boost::shared_ptr<Slices> slices,
+							  const boost::shared_ptr<ConflictSets> conflictSets,
+							  const boost::shared_ptr<Blocks> extractBlocks);
 	
-	void getChildren(ComponentSliceMap& componentSliceMap,
-					 const boost::shared_ptr<ComponentTree::Node>& node,
-					 const boost::shared_ptr<Slices>& descendants);
+	bool containsAny(const ConflictSet& conflictSet, const std::set<unsigned int>& idSet);
 	
 	/**
 	 * Helper function that checks whether a Slice can be considered whole or
-	 * not, setting its wholeness flag apropriately. Also checks whether the
-	 * Block that contains its potential neighbors 
+	 * not
 	 */
 	void checkWhole(const boost::shared_ptr<Slice>& slice,
 					const boost::shared_ptr<Blocks>& extractBlocks,
@@ -85,12 +77,11 @@ private:
 	
 	pipeline::Input<MserParameters> _mserParameters;
 	pipeline::Input<SliceStore> _sliceStore;
-	pipeline::Input<ImageBlockFactory> _blockFactory;
 	pipeline::Input<unsigned int> _maximumArea;
 	pipeline::Input<Blocks> _blocks;
+	pipeline::Input<StackStore> _stackStore;
 	
-	pipeline::Output<Blocks> _neighborBlocks;
-	pipeline::Output<SliceStoreResult> _count;
+	pipeline::Output<Blocks> _needBlocks;
 };
 
 #endif //SLICE_GUARANTOR_H__

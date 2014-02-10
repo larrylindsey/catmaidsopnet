@@ -132,7 +132,7 @@ void SegmentGuarantor::updateOutputs()
 		
 		// We need the slices across the +z boundary, in order to ensure that we'll extract all
 		// of the required segments.
-		sliceBlocks->expand(util::ptrTo(0, 0, 1));
+		sliceBlocks->expand(util::point3<int>(0, 0, 1));
 
 		// Check that we have slices in all of the necessary blocks.
 		foreach (boost::shared_ptr<Block> block, *sliceBlocks)

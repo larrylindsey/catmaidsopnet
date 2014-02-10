@@ -12,10 +12,17 @@
 class StackStore : public pipeline::Data
 {
 public:
+	/**
+	 * Return a ImageStack Value for the given Box by calling 
+	 * getImage for each section (z-coordinate) contained in the Box.
+	 */
 	virtual pipeline::Value<ImageStack> getImageStack(const Box<>& box);
 	
 protected:
 	
+	/**
+	 * Return the image for the given section and rectangular bounding box.
+	 */
 	virtual boost::shared_ptr<Image> getImage(const util::rect<unsigned int> bound,
 											  const unsigned int section) = 0;
 	

@@ -15,6 +15,21 @@
 #include <imageprocessing/MserParameters.h>
 #include "SliceGuarantorParameters.h"
 
+/**
+ * SliceGuarantor is a class that, given a sub-stack (measured in Blocks), guarantees that all
+ * Slices in that substack will exist in the given SliceStore after guaranteeSlices is called.
+ * If this guarantee cannot be made, say because the membrane images are not yet available,
+ * guaranteeSlices will report those Blocks and exit (in this case, no guarantee about the slices
+ * has been made).
+ * 
+ * This extends to any conflict sets over the slices. In the MSER sense, two Slices conflict if
+ * one is the ancestor of the other. A SliceGuarantor will guarantee that all Slices that belong to
+ * the same conflict set as a Slice in the guaranteed substack are also populated in the Slice Store,
+ * even if they don't overlap with the guaranteed substack.
+ * 
+ * 
+ */
+
 class SliceGuarantor : public pipeline::SimpleProcessNode<>
 {
 	typedef boost::unordered_map<ConnectedComponent, boost::shared_ptr<Slice> >  ComponentSliceMap;

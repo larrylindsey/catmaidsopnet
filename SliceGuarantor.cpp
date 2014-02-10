@@ -126,19 +126,16 @@ SliceGuarantor::extractSlices() {
 	*_count = *count;
 }
 
-boost::shared_ptr<SliceStoreResult>
-SliceGuarantor::writeSlices(const boost::shared_ptr<Blocks>& guaranteeBlocks,
-							const boost::shared_ptr<Blocks>& extractBlocks,
-							const boost::shared_ptr<Slices>& slices,
-							const boost::shared_ptr<ComponentTrees>& trees)
+void
+SliceGuarantor::writeSlices(const boost::shared_ptr<Blocks> guaranteeBlocks,
+							const boost::shared_ptr<Blocks> extractBlocks,
+							const boost::shared_ptr<Slices> slices,
+							const boost::shared_ptr<LinearConstraints> conflictSets)
 {
 	//TODO: Consider migrating this behavior to the SliceWriter.
 	// * possible to reduce the number of db hits
 	// * it seems philosophically "cleaner" to move the nitty-gritty of slice storage to the class
 	//      that handles it.
-	
-	boost::shared_ptr<SliceStoreResult> count = boost::make_shared<SliceStoreResult>();
-	
 	
 	// Slice and LinearConstraints persistence.
 	boost::shared_ptr<SliceWriter> sliceWriter = boost::make_shared<SliceWriter>();
@@ -161,33 +158,30 @@ SliceGuarantor::writeSlices(const boost::shared_ptr<Blocks>& guaranteeBlocks,
 	// Write the Slices in the guarantee blocks to the store.
 	foreach (boost::shared_ptr<Block> block, *guaranteeBlocks)
 	{
-		writeSlicesHelper(block, slices, trees, sliceWriter, guaranteeBlockSlices, count);
+		writeSlicesHelper(block, slices, conflictSets, sliceWriter, guaranteeBlockSlices);
 	}
 	
 	// Collect the descendants of the slices we just wrote, and write them to the store,
 	// regardless of whether they are in the guarantee blocks.
-	sliceFamily = collectDescendants(guaranteeBlockSlices, trees);
+	sliceFamily = collectDescendants(guaranteeBlockSlices, conflictSets);
 	
 	foreach (boost::shared_ptr<Block> block, *extractBlocks)
 	{
 		if (!guaranteeBlocks->contains(block))
 		{
 			boost::shared_ptr<Slices> emptySlices;
-			writeSlicesHelper(block, sliceFamily, trees, sliceWriter, emptySlices, count);
+			writeSlicesHelper(block, sliceFamily, conflictSets, sliceWriter, emptySlices);
 		}
 		
 	}
-	
-	return count;
 }
 
 
-void SliceGuarantor::writeSlicesHelper(const boost::shared_ptr<Block>& block,
-									   const boost::shared_ptr<Slices>& slices,
-									   const boost::shared_ptr<ComponentTrees>& trees,
-									   const boost::shared_ptr<SliceWriter>& sliceWriter,
-									   const boost::shared_ptr<Slices>& writtenSlices,
-									   const boost::shared_ptr<SliceStoreResult>& count)
+void SliceGuarantor::writeSlicesHelper(const boost::shared_ptr<Block> block,
+									   const boost::shared_ptr<Slices> slices,
+									   const boost::shared_ptr<LinearConstraints> conflictSets,
+									   const boost::shared_ptr<SliceWriter> sliceWriter,
+									   const boost::shared_ptr<Slices> writtenSlices)
 {
 	// Value used to force updateOutputs on the slice writer.
 	pipeline::Value<SliceStoreResult> sliceWriteCount;
@@ -210,12 +204,12 @@ void SliceGuarantor::writeSlicesHelper(const boost::shared_ptr<Block>& block,
 	}
 	
 	sliceWriter->setInput("slices", blockSlices);
-	sliceWriter->setInput("component trees", trees);
+
 	sliceWriter->setInput("block", block);
 
 	// Force sliceWriter to run updateOutputs
-	sliceWriteCount = sliceWriter->getOutput();
-	count->count += sliceWriteCount->count;
+	sliceWriter->writeSlices();
+	
 	
 	LOG_ALL(sliceguarantorlog) << "Wrote " << sliceWriteCount->count << " slices to Block" <<
 		std::endl;

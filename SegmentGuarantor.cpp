@@ -9,8 +9,7 @@ logger::LogChannel segmentguarantorlog("segmentguarantorlog", "[SegmentGuarantor
 
 SegmentGuarantor::SegmentGuarantor()
 {
-	registerInput(_box, "box");
-	registerInput(_blockManager, "block manager");
+	registerInput(_blocks, "blocks");
 	registerInput(_segmentStore, "segment store");
 	registerInput(_sliceStore, "slice store");
 	registerInput(_forceExplanation, "force explanation");
@@ -71,7 +70,6 @@ void SegmentGuarantor::guaranteeSegments(
 	{
 		if (_blockManager->isValidZ(z) && _blockManager->isValidZ(z + 1))
 		{
-			pipeline::Value<LinearConstraints> extractedConstraints;
 			pipeline::Value<Segments> extractedSegments;
 			
 			boost::shared_ptr<SegmentExtractor> extractor = boost::make_shared<SegmentExtractor>();
@@ -98,14 +96,6 @@ void SegmentGuarantor::guaranteeSegments(
 			extractor->setInput("previous slices", prevSlices);
 			extractor->setInput("next slices", nextSlices);
 			
-			if (_blockManager->isUpperBound(z + 1))
-			{
-				// Fool the extractor into generating the EndSegments we need at the upper bound of the stack.
-				boost::shared_ptr<LinearConstraints> emptyConstraints = boost::make_shared<LinearConstraints>();
-				//extractor->setInput("previous linear constraints", emptyConstraints);
-				extractor->setInput("next linear constraints", emptyConstraints);
-			}
-			
 			extractedSegments = extractor->getOutput("segments");
 			
 			LOG_DEBUG(segmentguarantorlog) << "Got " << extractedSegments->size() << " segments"
@@ -113,11 +103,6 @@ void SegmentGuarantor::guaranteeSegments(
 			
 			segments->addAll(extractedSegments);
 		}
-// 		else
-// 		{
-// 			LOG_DEBUG(segmentguarantorlog) << "Not extracting segments between " << z << " and " <<
-// 				(z + 1) << " because one of these sections is invalid" << std::endl;
-// 		}
 	}
 	
 	segmentWriter->setInput("segments", segments);
@@ -132,7 +117,7 @@ void SegmentGuarantor::guaranteeSegments(
 
 void SegmentGuarantor::updateOutputs()
 {
-	boost::shared_ptr<Blocks> guaranteeBlocks = _blockManager->blocksInBox(_box);
+	boost::shared_ptr<Blocks> guaranteeBlocks = _blocks;
 	boost::shared_ptr<Blocks> sliceBlocks = boost::make_shared<Blocks>(guaranteeBlocks);
 	bool allExtracted = true;
 	
@@ -170,45 +155,6 @@ void SegmentGuarantor::updateOutputs()
 		LOG_DEBUG(segmentguarantorlog) << "Segments already in cache for all requested Blocks" <<
 			std::endl;
 	}
-	
-}
-
-bool
-SegmentGuarantor::isAssociated(const LinearConstraint& constraint,
-							   const boost::shared_ptr< Slices >& slices) const
-{
-	std::map<unsigned int, double>::const_iterator iter;
-	for (iter = constraint.getCoefficients().begin();
-			iter != constraint.getCoefficients().end(); ++iter)
-	{
-		foreach (boost::shared_ptr<Slice> slice, *slices)
-		{
-			if (iter->first == slice->getId())
-			{
-				return true;
-			}
-		}
-	}
-	
-	return false;
-}
-
-
-boost::shared_ptr<LinearConstraints>
-SegmentGuarantor::collectConstraints(const boost::shared_ptr<Slices>& slices,
-								const boost::shared_ptr<LinearConstraints>& constraints) const
-{
-	boost::shared_ptr<LinearConstraints> restriction = boost::make_shared<LinearConstraints>();
-	
-	foreach (LinearConstraint constraint, *constraints)
-	{
-		if (isAssociated(constraint, slices))
-		{
-			restriction->add(constraint);
-		}
-	}
-	
-	return restriction;
 	
 }
 

@@ -14,9 +14,10 @@ class SliceWriter : public pipeline::SimpleProcessNode<>
 public:
 	SliceWriter();
 	
-private:
-	void updateOutputs();
+	void writeSlices();
 	
+private:
+
 	void assignParents(ComponentSliceMap& componentSliceMap,
 					   const boost::shared_ptr<ComponentTree::Node>& node);
 	
@@ -24,7 +25,6 @@ private:
 	pipeline::Input<Slices> _slices;
 	pipeline::Input<SliceStore> _store;
 	pipeline::Input<ComponentTrees> _trees;
-	pipeline::Output<SliceStoreResult> _count;
 };
 
 

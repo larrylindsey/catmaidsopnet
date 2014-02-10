@@ -9,11 +9,10 @@ SliceWriter::SliceWriter()
 	registerInput(_slices, "slices");
 	registerInput(_store, "store");
 	registerInput(_trees, "component trees");
-	registerOutput(_count, "count");
 }
 
 void
-SliceWriter::updateOutputs()
+SliceWriter::writeSlices()
 {
 	//TODO verify slice inputs against component trees
 	// IE, each slice should have an entry in a tree.
@@ -22,6 +21,7 @@ SliceWriter::updateOutputs()
 	ComponentTrees::iterator ctit;
 	std::vector<boost::shared_ptr<ConnectedComponent> > components;
 	
+	updateInputs();
 	
 	foreach (boost::shared_ptr<Slice> slice, *_slices)
 	{
@@ -40,7 +40,6 @@ SliceWriter::updateOutputs()
 		}
 	}
 	
-	*_count = SliceStoreResult(count);
 }
 
 void

@@ -21,7 +21,9 @@ public:
 protected:
 	
 	/**
-	 * Return the image for the given section and rectangular bounding box.
+	 * Return the image for the given section and rectangular bounding box, or an empty
+	 * image if this is impossible (for instance, if the section number is invalid, or the
+	 * bound does not overlap any image data in the section).
 	 */
 	virtual boost::shared_ptr<Image> getImage(const util::rect<unsigned int> bound,
 											  const unsigned int section) = 0;

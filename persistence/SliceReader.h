@@ -34,7 +34,7 @@ private:
 	pipeline::Input<BlockManager> _blockManager;
 	pipeline::Input<SliceStore> _store;
 	pipeline::Output<Slices> _slices;
-	pipeline::Output<ComponentTrees> _trees;
+	pipeline::Output<ConflictSets> _conflictSets;
 	
 	bool _sourceIsBox;
 };

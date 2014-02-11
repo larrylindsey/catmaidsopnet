@@ -7,25 +7,12 @@ logger::LogChannel slicereaderlog("slicereaderlog", "[SliceReader] ");
 
 SliceReader::SliceReader()
 {
-	registerInput(_box, "box", pipeline::Optional);
-	registerInput(_blocks, "blocks", pipeline::Optional);
+	registerInput(_blocks, "blocks");
 	registerInput(_store, "store");
 	registerInput(_blockManager, "block manager");
-	registerOutput(_slices, "slices");
 	
-	_box.registerBackwardCallback(&SliceReader::onBoxSet, this);
-	_blocks.registerBackwardCallback(&SliceReader::onBlocksSet, this);
-}
-
-void SliceReader::onBoxSet(const pipeline::InputSetBase& )
-{
-	_sourceIsBox = true;
-}
-
-void SliceReader::onBlocksSet(const pipeline::InputSetBase& )
-{
-	_sourceIsBox = false;
-	setInput("block manager", _blocks->getManager());
+	registerOutput(_slices, "slices");
+	registerOutput(_conflictSets, "conflict sets");
 }
 
 void
@@ -42,7 +29,6 @@ SliceReader::addUnique(const boost::shared_ptr<Slices>& inSlices,
 		}
 	}
 }
-
 
 void SliceReader::updateOutputs()
 {

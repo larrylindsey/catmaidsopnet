@@ -24,31 +24,31 @@ public:
      * @param slices - the slices to store.
      * @param block - the block containing the slices.
      */
-    virtual void associate(const pipeline::Value<Slices> slices,
-						   const pipeline::Value<Block> block) = 0;
+    virtual void associate(pipeline::Value<Slices> slices,
+						   pipeline::Value<Block> block) = 0;
 
     /**
      * Retrieve all slices that are at least partially contained in the given blocks.
      * @param blocks - the Blocks for which to retrieve all slices.
      */
-    virtual pipeline::Value<Slices> retrieveSlices(const pipeline::Value<Blocks> blocks) = 0;
+    virtual pipeline::Value<Slices> retrieveSlices(pipeline::Value<Blocks> blocks) = 0;
 
 	/**
 	 * Retrieve all Blocks associated with the given slice.
 	 * @param slice - the slice for which Blocks are to be retrieved.
 	 */
 	virtual pipeline::Value<Blocks> getAssociatedBlocks(
-		const pipeline::Value<Slice> slice) = 0;
+		pipeline::Value<Slice> slice) = 0;
 	
 	/**
 	 * Store a conflict set relationship. This requires the slices in question to already be
 	 * stored in this SliceStore.
 	 * @param conflictSets - the ConflictSets in question
 	 */
-	virtual void storeConflict(const pipeline::Value<ConflictSets> conflictSets) = 0;
+	virtual void storeConflict(pipeline::Value<ConflictSets> conflictSets) = 0;
 	
 	virtual pipeline::Value<ConflictSets>
-		retrieveConflictSets(const pipeline::Value<Slices> slices) = 0;
+		retrieveConflictSets(pipeline::Value<Slices> slices) = 0;
 };
 
 #endif //SLICE_STORE_H__

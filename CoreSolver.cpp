@@ -12,7 +12,7 @@ util::ProgramOption optionRandomForestFileBlock(
 
 CoreSolver::CoreSolver() :
 	_problemAssembler(boost::make_shared<ProblemAssembler>()),
-	_componentTreeExtractor(boost::make_shared<ComponentTreeExtractor>()),	
+	//_componentTreeExtractor(boost::make_shared<ComponentTreeExtractor>()),	
 	_reconstructor(boost::make_shared<Reconstructor>()),
 	_linearSolver(boost::make_shared<LinearSolver>()),
 	_neuronExtractor(boost::make_shared<NeuronExtractor>()),
@@ -62,16 +62,16 @@ CoreSolver::updateOutputs()
 	
 	_rawImageStackReader->setInput("factory", _rawImageFactory);
 	
-	_componentTreeExtractor->setInput("slices", _sliceReader->getOutput("slices"));
-	_componentTreeExtractor->setInput("segments", _segmentReader->getOutput("segments"));
-	_componentTreeExtractor->setInput("blocks", _blocks);
-	_componentTreeExtractor->setInput("store", _sliceStore);
-	_componentTreeExtractor->setInput("force explanation", _forceExplanation);
-	
+// 	_componentTreeExtractor->setInput("slices", _sliceReader->getOutput("slices"));
+// 	_componentTreeExtractor->setInput("segments", _segmentReader->getOutput("segments"));
+// 	_componentTreeExtractor->setInput("blocks", _blocks);
+// 	_componentTreeExtractor->setInput("store", _sliceStore);
+// 	_componentTreeExtractor->setInput("force explanation", _forceExplanation);
+// 	
 	_problemAssembler->addInput("segments", _segmentReader->getOutput("segments"));
-	_problemAssembler->addInput("linear constraints",
-								_componentTreeExtractor->getOutput("linear constraints"));
-	
+// 	_problemAssembler->addInput("linear constraints",
+// 								_componentTreeExtractor->getOutput("linear constraints"));
+// 	
 	// Use problem assembler output to compute the bounding box we need to contain all
 	// of the slices that are present. This will usually be larger than the requested
 	// Blocks.

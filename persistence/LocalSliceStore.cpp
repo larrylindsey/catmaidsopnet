@@ -8,80 +8,44 @@ logger::LogChannel localslicestorelog("localslicestorelog", "[LocalSliceStore] "
 
 LocalSliceStore::LocalSliceStore()
 {
-	_sliceBlockMap = boost::make_shared<SliceBlockMap>();
-	_blockSliceMap = boost::make_shared<BlockSliceMap>();
-	_idSliceMap = boost::make_shared<IdSliceMap>();
-	_parentChildrenMap = boost::make_shared<SliceSlicesMap>();
-	_childParentMap = boost::make_shared<SliceSliceMap>();
 }
 
 
-boost::shared_ptr<Blocks>
-LocalSliceStore::getAssociatedBlocks(const boost::shared_ptr< Slice >& slice)
+pipeline::Value<Blocks>
+LocalSliceStore::getAssociatedBlocks(pipeline::Value<Slice> slice)
 {
-	if (_sliceBlockMap->count(*slice))
+	if (_sliceBlockMap.count(*slice))
 	{
-		return (*_sliceBlockMap)[*slice];
+		return _sliceBlockMap[*slice];
 	}
 	else
 	{
-		boost::shared_ptr<Blocks> empty = boost::make_shared<Blocks>();
-		return empty;
+		return pipeline::Value<Slice>();
 	}
 }
 
-void
-LocalSliceStore::removeSlice(const boost::shared_ptr< Slice >& slice)
+pipeline::Value<Slices>
+LocalSliceStore::retrieveSlices(const pipeline::Value<Blocks> blocks)
 {
-	boost::shared_ptr<Blocks> blocks = getAssociatedBlocks(slice);
+	pipeline::Value<Slices> slices = pipeline::Value<Slices>();
+	SliceSet blockSliceSet;
 	
 	foreach (boost::shared_ptr<Block> block, *blocks)
 	{
-		(*_blockSliceMap)[*block]->remove(slice);
-	}
-	
-	_sliceBlockMap->erase(*slice);
-	_sliceMasterList.erase(*slice);
-}
-
-void
-LocalSliceStore::disassociate(const boost::shared_ptr< Slice >& slice, const boost::shared_ptr<Block>& block)
-{
-	if (_sliceBlockMap->count(*slice))
-	{
-		(*_sliceBlockMap)[*slice]->remove(block);
-		
-		if ((*_sliceBlockMap)[*slice]->length() == 0)
+	if (_blockSliceMap.count(*block))
 		{
-			_sliceBlockMap->erase(*slice);
+			LOG_ALL(localslicestorelog) << "Found block " << *block << " in block slice map" <<
+				std::endl;
+			pipeline::Value<Slices> blockSlices = _blockSliceMap[*block];
+			blockSliceSet.insert(blockSlices->begin(), blockSlices->end());
 		}
 	}
-	
-	if (_blockSliceMap->count(*block))
-	{
-		(*_blockSliceMap)[*block]->remove(slice);
-		
-		if ((*_blockSliceMap)[*block]->size() == 0)
-		{
-			_blockSliceMap->erase(*block);
-		}
-	}
-}
 
-boost::shared_ptr<Slices>
-LocalSliceStore::retrieveSlices(const boost::shared_ptr<Block>& block)
-{
-	boost::shared_ptr<Slices> slices = boost::make_shared<Slices>();;
-	
-	LOG_DEBUG(localslicestorelog) << "Retrieving slices for block at " << block->location() << std::endl;
-	
-	if (_blockSliceMap->count(*block))
+	foreach (boost::shared_ptr<Slice> slice, blockSliceSet)
 	{
-		LOG_DEBUG(localslicestorelog) << "Found block in block slice map" << std::endl;
-		boost::shared_ptr<Slices> blockSlices = (*_blockSliceMap)[*block];
-		slices->addAll(*blockSlices);
+		slices->add(slice);
 	}
-
+	
 	return slices;
 }
 
@@ -145,37 +109,43 @@ LocalSliceStore::mapSliceToBlock(const boost::shared_ptr< Slice >& slice, const 
 }
 
 void
-LocalSliceStore::associate(const boost::shared_ptr< Slice >& sliceIn,
-							const boost::shared_ptr< Block >& block)
+LocalSliceStore::associate(const pipeline::Value<Slices> slicesIn,
+							const boost::shared_ptr<Block> block)
 {
-	LOG_ALL(localslicestorelog) << "Got a slice with " <<
-		sliceIn->getComponent()->getSize() << " pixels." << std::endl;
+	foreach (boost::shared_ptr<Slice> slice, *slicesIn)
+	{
+		// Check to see if we've already stored this Slice, in the sense that we stored a different
+		// Slice object that contains the same geometry. If so, eqSlice will point to the old one.
+		// If not, the eqSlice pointer will be equal to the slice pointer.
+		boost::shared_ptr<Slice> eqSlice = equivalentSlice(slice);
 
-	boost::shared_ptr<Slice> slice = equivalentSlice(sliceIn);
-	
-	mapBlockToSlice(block, slice);
-	mapSliceToBlock(slice, block);
-	
-	if (_sliceMasterList.count(*slice))
-	{
-		unsigned int existingId = _sliceMasterList.find(*slice)->getId();
-		(*_idSliceMap)[slice->getId()] = (*_idSliceMap)[existingId];
-	}
-	else
-	{
-		(*_idSliceMap)[slice->getId()] = slice;
-		_sliceMasterList.insert(*slice);
+		// Map the old pointer
+		mapBlockToSlice(block, eqSlice);
+		mapSliceToBlock(eqSlice, block);
+
+		if (_sliceMasterSet.count(slice))
+		{
+			// If we have already stored this Slice, map the new id to the old object.
+			unsigned int existingId = (*_sliceMasterSet.find(slice))->getId();
+			_idSliceMap[slice->getId()] = _idSliceMap[existingId];
+		}
+		else
+		{
+			// If we have not already stored this slice, map it to its id, and sert it into
+			// the set.
+			_idSliceMap[slice->getId()] = slice;
+			_sliceMasterSet.insert(slice);
+		}
 	}
 }
 
 boost::shared_ptr<Slice>
 LocalSliceStore::equivalentSlice(const boost::shared_ptr<Slice>& slice)
 {
-	if (_sliceMasterList.count(*slice))
+	if (_sliceMasterSet.count(slice))
 	{
-		unsigned int id = _sliceMasterList.find(*slice)->getId();
-		boost::shared_ptr<Slice> eqSlice = (*_idSliceMap)[id];
-		return eqSlice;
+		
+		return *_sliceMasterSet.find(slice);
 	}
 	else
 	{
@@ -184,44 +154,56 @@ LocalSliceStore::equivalentSlice(const boost::shared_ptr<Slice>& slice)
 }
 
 void
-LocalSliceStore::setParent(const boost::shared_ptr<Slice>& childSlice,
-						   const boost::shared_ptr<Slice>& parentSlice)
+LocalSliceStore::storeConflict(const pipeline::Value<ConflictSets> conflictSets)
 {
-	if (! _parentChildrenMap->count(*parentSlice))
+	
+	
+	foreach (const ConflictSet conflict, *conflictSets)
 	{
-		(*_parentChildrenMap)[*parentSlice] = boost::make_shared<Slices>();
+		ConflictSet eqConflict;
+		foreach (const unsigned int id, conflict.getSlices())
+		{
+			if (_idSliceMap.count(id))
+			{
+				eqConflict.addSlice(_idSliceMap[id]->getId());
+			}
+		}
+		
+
+		foreach (const unsigned int id, conflict.getSlices())
+		{
+			if (_idSliceMap.count(id))
+			{
+				unsigned int eqId = _idSliceMap[id]->getId();
+				_conflictMap[id]->add(eqConflict);
+			}
+		}
+
+	}
+}
+
+pipeline::Value<ConflictSets>
+LocalSliceStore::retrieveConflictSets(const pipeline::Value<Slices> slices)
+{
+	pipeline::Value<ConflictSets> allConflictSets();
+	std::set<ConflictSet> conflictSetSet;
+	
+	// Oh, man. This could be really expensive. We're only doing it for testing, so it should be ok
+	foreach (boost::shared_ptr<Slice> slice, *slices)
+	{
+		boost::shared_ptr<Slice> eqSlice = equivalentSlice(slice);
+		pipeline::Value<ConflictSets> conflictSets = IdConflictsMap[eqSlice->getId()];
+		conflictSetSet.insert(conflictSets->begin(), conflictSets->end());
 	}
 	
-	(*_parentChildrenMap)[*parentSlice]->add(childSlice);
-	(*_childParentMap)[*childSlice] = parentSlice;
+	foreach (ConflictSet conflictSet, conflictSetSet)
+	{
+		allConflictSets->add(conflictSet);
+	}
+	
+	return allConflictSets;
 }
 
-boost::shared_ptr<Slices>
-LocalSliceStore::getChildren(const boost::shared_ptr<Slice>& parentSlice)
-{
-	if (_parentChildrenMap->count(*parentSlice))
-	{
-		return (*_parentChildrenMap)[*parentSlice];
-	}
-	else
-	{
-		boost::shared_ptr<Slices> emptySlices = boost::make_shared<Slices>();
-		return emptySlices;
-	}
-}
-
-boost::shared_ptr<Slice>
-LocalSliceStore::getParent(const boost::shared_ptr< Slice >& childSlice)
-{
-	if (_childParentMap->count(*childSlice))
-	{
-		return (*_childParentMap)[*childSlice];
-	}
-	else
-	{
-		return boost::shared_ptr<Slice>();
-	}
-}
 
 void
 LocalSliceStore::dumpStore()
@@ -229,13 +211,13 @@ LocalSliceStore::dumpStore()
 	SliceBlockMap::iterator sbm_it;
 	BlockSliceMap::iterator bsm_it;
 	
-	LOG_DEBUG(localslicestorelog) << "I have " << _sliceMasterList.size() << " slices recorded" <<
+	LOG_DEBUG(localslicestorelog) << "I have " << _sliceMasterSet.size() << " slices recorded" <<
 		std::endl;
 	
-	foreach (const Slice& slice, _sliceMasterList)
+	foreach (const boost::shared_ptr<Slice> slice, _sliceMasterSet)
 	{
-		LOG_DEBUG(localslicestorelog) << "Slice id: " << slice.getId() << "\tHash: " <<
-			slice.hashValue() << std::endl;
+		LOG_DEBUG(localslicestorelog) << "Slice id: " << slice->getId() << "\tHash: " <<
+			slice->hashValue() << std::endl;
 	}
 	
 	for (sbm_it = _sliceBlockMap->begin(); sbm_it != _sliceBlockMap->end(); ++sbm_it)

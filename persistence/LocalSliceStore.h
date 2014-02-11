@@ -4,8 +4,8 @@
 #include <boost/unordered_map.hpp>
 #include <boost/unordered_set.hpp>
 #include <boost/shared_ptr.hpp>
-#include <inference/Relation.h>
 
+#include <catmaidsopnet/persistence/SlicePointerHash.h>
 #include <catmaidsopnet/persistence/SliceStore.h>
 
 /**
@@ -14,33 +14,24 @@
 
 class LocalSliceStore : public SliceStore
 {
-	typedef boost::unordered_map<Slice, boost::shared_ptr<Blocks> > SliceBlockMap;
-	typedef boost::unordered_map<Block, boost::shared_ptr<Slices> > BlockSliceMap;
-	typedef boost::unordered_map<unsigned int, boost::shared_ptr<Slice> > IdSliceMap;
-	typedef boost::unordered_map<Slice, boost::shared_ptr<Slices> > SliceSlicesMap;
-	typedef boost::unordered_map<Slice, boost::shared_ptr<Slice> > SliceSliceMap;
+	typedef boost::unordered_map<Slice, pipeline::Value<Blocks> > SliceBlockMap;
+	typedef boost::unordered_map<Block, pipeline::Value<Slices> > BlockSliceMap;
+	typedef boost::unordered_map<unsigned int, pipeline::Value<Slice> > IdSliceMap;
+	typedef boost::unordered_map<unsigned int, pipeline::Value<ConflictSets> > IdConflictsMap;
 
 public:
 	LocalSliceStore();
 
-    void associate(const boost::shared_ptr<Slice>& slice, const boost::shared_ptr<Block>& block);
+    void associate(const pipeline::Value<Slice> slices, const pipeline::Value<Block> block);
 
-    boost::shared_ptr<Slices> retrieveSlices(const boost::shared_ptr<Block>& block);
+    pipeline::Value<Slices> retrieveSlices(const pipeline::Value<Blocks> blocks);
 
-	void disassociate(const boost::shared_ptr<Slice>& slice,
-					  const boost::shared_ptr<Block>& block);
+	pipeline::Value<Blocks> getAssociatedBlocks(const pipeline::Value<Slice> slice);
 
-	void removeSlice(const boost::shared_ptr<Slice>& slice);
-
-	boost::shared_ptr<Blocks> getAssociatedBlocks(const boost::shared_ptr<Slice>& slice);
+	void storeConflict(const pipeline::Value<Slices> conflictSlices);
 	
-	void setParent(const boost::shared_ptr<Slice>& childSlice,
-				   const boost::shared_ptr<Slice>& parentSlice);
-	
-	boost::shared_ptr<Slices> getChildren(const boost::shared_ptr<Slice>& parentSlice);
+	pipeline::Value<ConflictSets> retrieveConflictSets(const pipeline::Value<Slices> slices);
 
-	boost::shared_ptr<Slice> getParent(const boost::shared_ptr<Slice>& childSlice);
-	
 	void dumpStore();
 private:
 	
@@ -48,14 +39,14 @@ private:
 						 const boost::shared_ptr<Block>& block);
 	void mapBlockToSlice(const boost::shared_ptr<Block>& block,
 						 const boost::shared_ptr<Slice>& slice);
+
 	boost::shared_ptr<Slice> equivalentSlice(const boost::shared_ptr<Slice>& slice);
 	
-	boost::shared_ptr<SliceBlockMap> _sliceBlockMap;
-	boost::shared_ptr<BlockSliceMap> _blockSliceMap;
-	boost::shared_ptr<IdSliceMap> _idSliceMap;
-	boost::shared_ptr<SliceSlicesMap> _parentChildrenMap;
-	boost::unordered_set<Slice> _sliceMasterList;
-	boost::shared_ptr<SliceSliceMap> _childParentMap;
+	SliceSet _sliceMasterSet;
+	SliceBlockMap _sliceBlockMap;
+	BlockSliceMap _blockSliceMap;
+	IdSliceMap _idSliceMap;
+	IdConflictsMap _conflictMap;
 	
 };
 

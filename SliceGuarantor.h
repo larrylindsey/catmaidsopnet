@@ -34,7 +34,6 @@
 
 class SliceGuarantor : public pipeline::SimpleProcessNode<>
 {
-	typedef boost::unordered_map<ConnectedComponent, boost::shared_ptr<Slice> >  ComponentSliceMap;
 public:
 
     SliceGuarantor();

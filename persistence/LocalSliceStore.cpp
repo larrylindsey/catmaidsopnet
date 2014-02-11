@@ -20,12 +20,12 @@ LocalSliceStore::getAssociatedBlocks(pipeline::Value<Slice> slice)
 	}
 	else
 	{
-		return pipeline::Value<Slice>();
+		return pipeline::Value<Blocks>();
 	}
 }
 
 pipeline::Value<Slices>
-LocalSliceStore::retrieveSlices(const pipeline::Value<Blocks> blocks)
+LocalSliceStore::retrieveSlices(pipeline::Value<Blocks> blocks)
 {
 	pipeline::Value<Slices> slices = pipeline::Value<Slices>();
 	SliceSet blockSliceSet;
@@ -53,17 +53,17 @@ void
 LocalSliceStore::mapBlockToSlice(const boost::shared_ptr< Block >& block, const boost::shared_ptr< Slice >& slice)
 {
 	// Place entry in block slice map
-	boost::shared_ptr<Slices> slices;
+	pipeline::Value<Slices> slices = _blockSliceMap[*block];
 	
-	if (_blockSliceMap->count(*block))
-	{
-		slices = (*_blockSliceMap)[*block];
-	}
-	else
-	{
-		slices = boost::make_shared<Slices>();
-		(*_blockSliceMap)[*block] = slices;
-	}
+// 	if (_blockSliceMap.count(*block))
+// 	{
+// 		
+// 	}
+// 	else
+// 	{
+// 		slices = boost::make_shared<Slices>();
+// 		_blockSliceMap[*block] = slices;
+// 	}
 	
 	foreach (boost::shared_ptr<Slice> cSlice, *slices)
 	{
@@ -82,17 +82,18 @@ void
 LocalSliceStore::mapSliceToBlock(const boost::shared_ptr< Slice >& slice, const boost::shared_ptr< Block >& block)
 {
 	// Place entry in slice block map
-	boost::shared_ptr<Blocks> blocks;
+	pipeline::Value<Blocks> blocks = _sliceBlockMap[*slice];
 	
-	if (_sliceBlockMap->count(*slice))
-	{
-		blocks = (*_sliceBlockMap)[*slice];
-	}
-	else
-	{
-		blocks = boost::make_shared<Blocks>();
-		(*_sliceBlockMap)[*slice] = blocks;
-	}
+	
+// 	if (_sliceBlockMap->count(*slice))
+// 	{
+// 		blocks = (*_sliceBlockMap)[*slice];
+// 	}
+// 	else
+// 	{
+// 		blocks = boost::make_shared<Blocks>();
+// 		(*_sliceBlockMap)[*slice] = blocks;
+// 	}
 	
 	foreach (boost::shared_ptr<Block> cBlock, *blocks)
 	{
@@ -109,8 +110,8 @@ LocalSliceStore::mapSliceToBlock(const boost::shared_ptr< Slice >& slice, const 
 }
 
 void
-LocalSliceStore::associate(const pipeline::Value<Slices> slicesIn,
-							const boost::shared_ptr<Block> block)
+LocalSliceStore::associate(pipeline::Value<Slices> slicesIn,
+							pipeline::Value<Block> block)
 {
 	foreach (boost::shared_ptr<Slice> slice, *slicesIn)
 	{
@@ -154,7 +155,7 @@ LocalSliceStore::equivalentSlice(const boost::shared_ptr<Slice>& slice)
 }
 
 void
-LocalSliceStore::storeConflict(const pipeline::Value<ConflictSets> conflictSets)
+LocalSliceStore::storeConflict(pipeline::Value<ConflictSets> conflictSets)
 {
 	
 	
@@ -185,16 +186,16 @@ LocalSliceStore::storeConflict(const pipeline::Value<ConflictSets> conflictSets)
 }
 
 pipeline::Value<ConflictSets>
-LocalSliceStore::retrieveConflictSets(const pipeline::Value<Slices> slices)
+LocalSliceStore::retrieveConflictSets(pipeline::Value<Slices> slices)
 {
-	pipeline::Value<ConflictSets> allConflictSets();
-	std::set<ConflictSet> conflictSetSet;
+	pipeline::Value<ConflictSets> allConflictSets;
+	boost::unordered_set<ConflictSet> conflictSetSet;
 	
 	// Oh, man. This could be really expensive. We're only doing it for testing, so it should be ok
 	foreach (boost::shared_ptr<Slice> slice, *slices)
 	{
 		boost::shared_ptr<Slice> eqSlice = equivalentSlice(slice);
-		pipeline::Value<ConflictSets> conflictSets = IdConflictsMap[eqSlice->getId()];
+		pipeline::Value<ConflictSets> conflictSets = _conflictMap[eqSlice->getId()];
 		conflictSetSet.insert(conflictSets->begin(), conflictSets->end());
 	}
 	
@@ -222,13 +223,13 @@ LocalSliceStore::dumpStore()
 			slice->hashValue() << std::endl;
 	}
 	
-	for (sbm_it = _sliceBlockMap->begin(); sbm_it != _sliceBlockMap->end(); ++sbm_it)
+	for (sbm_it = _sliceBlockMap.begin(); sbm_it != _sliceBlockMap.end(); ++sbm_it)
 	{
 		LOG_DEBUG(localslicestorelog) << "Slice id: " << sbm_it->first.getId() <<
 			" with " << sbm_it->second->length() << " blocks " << std::endl;
 	}
 	
-	for (bsm_it = _blockSliceMap->begin(); bsm_it != _blockSliceMap->end(); ++bsm_it)
+	for (bsm_it = _blockSliceMap.begin(); bsm_it != _blockSliceMap.end(); ++bsm_it)
 	{
 		LOG_DEBUG(localslicestorelog) << "Block " << bsm_it->first << " with " <<
 			bsm_it->second->size() << " slices" << std::endl;

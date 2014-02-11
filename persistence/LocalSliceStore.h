@@ -16,21 +16,21 @@ class LocalSliceStore : public SliceStore
 {
 	typedef boost::unordered_map<Slice, pipeline::Value<Blocks> > SliceBlockMap;
 	typedef boost::unordered_map<Block, pipeline::Value<Slices> > BlockSliceMap;
-	typedef boost::unordered_map<unsigned int, pipeline::Value<Slice> > IdSliceMap;
+	typedef boost::unordered_map<unsigned int, boost::shared_ptr<Slice> > IdSliceMap;
 	typedef boost::unordered_map<unsigned int, pipeline::Value<ConflictSets> > IdConflictsMap;
 
 public:
 	LocalSliceStore();
 
-    void associate(const pipeline::Value<Slice> slices, const pipeline::Value<Block> block);
+    void associate(pipeline::Value<Slices> slices, pipeline::Value<Block> block);
 
-    pipeline::Value<Slices> retrieveSlices(const pipeline::Value<Blocks> blocks);
+    pipeline::Value<Slices> retrieveSlices(pipeline::Value<Blocks> blocks);
 
-	pipeline::Value<Blocks> getAssociatedBlocks(const pipeline::Value<Slice> slice);
+	pipeline::Value<Blocks> getAssociatedBlocks(pipeline::Value<Slice> slice);
 
-	void storeConflict(const pipeline::Value<Slices> conflictSlices);
+	void storeConflict(pipeline::Value<ConflictSets> conflictSets);
 	
-	pipeline::Value<ConflictSets> retrieveConflictSets(const pipeline::Value<Slices> slices);
+	pipeline::Value<ConflictSets> retrieveConflictSets(pipeline::Value<Slices> slices);
 
 	void dumpStore();
 private:

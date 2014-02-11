@@ -1,7 +1,6 @@
 #include "SegmentGuarantor.h"
 #include <util/Logger.h>
 #include <catmaidsopnet/persistence/SegmentWriter.h>
-#include <catmaidsopnet/ComponentTreeExtractor.h>
 #include <sopnet/segments/SegmentExtractor.h>
 #include <pipeline/Value.h>
 
@@ -23,8 +22,8 @@ SegmentGuarantor::collectNecessarySlices(const boost::shared_ptr<SliceReader>& s
 {
 	pipeline::Value<Slices> slices, conflictSlices;
 	boost::shared_ptr<Blocks> extraBlocks = boost::make_shared<Blocks>(sliceBlocks);
-	boost::shared_ptr<ComponentTreeExtractor> componentTreeExtractor =
-		boost::make_shared<ComponentTreeExtractor>();
+// 	boost::shared_ptr<ComponentTreeExtractor> componentTreeExtractor =
+// 		boost::make_shared<ComponentTreeExtractor>();
 	
 	
 	// The Slice Reader pulls in the slices associated with sliceBlocks,
@@ -34,12 +33,12 @@ SegmentGuarantor::collectNecessarySlices(const boost::shared_ptr<SliceReader>& s
 	
 
 	// Set conflict data in slices
-	componentTreeExtractor->setInput("blocks", extraBlocks);
-	componentTreeExtractor->setInput("slices", sliceReader->getOutput("slices"));
-	componentTreeExtractor->setInput("force explanation", _forceExplanation);
-	componentTreeExtractor->setInput("store", _sliceStore);
+// 	componentTreeExtractor->setInput("blocks", extraBlocks);
+// 	componentTreeExtractor->setInput("slices", sliceReader->getOutput("slices"));
+// 	componentTreeExtractor->setInput("force explanation", _forceExplanation);
+// 	componentTreeExtractor->setInput("store", _sliceStore);
 	
-	conflictSlices = componentTreeExtractor->getOutput("slices");
+// 	conflictSlices = componentTreeExtractor->getOutput("slices");
 	
 	return conflictSlices;
 }

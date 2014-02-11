@@ -2,15 +2,13 @@
 #define SLICE_WRITER_H__
 
 #include <pipeline/all.h>
-#include <sopnet/block/Block.h>
+#include <sopnet/block/Blocks.h>
 #include <sopnet/slices/Slices.h>
-#include <imageprocessing/ComponentTrees.h>
+#include <sopnet/slices/ConflictSets.h>
 #include <catmaidsopnet/persistence/SliceStore.h>
-#include <boost/unordered_map.hpp>
 
 class SliceWriter : public pipeline::SimpleProcessNode<>
 {
-	typedef boost::unordered_map<ConnectedComponent, boost::shared_ptr<Slice> >  ComponentSliceMap;
 public:
 	SliceWriter();
 	
@@ -19,14 +17,14 @@ public:
 private:
 	
 	void updateOutputs(){}
-
-	void assignParents(ComponentSliceMap& componentSliceMap,
-					   const boost::shared_ptr<ComponentTree::Node>& node);
 	
-	pipeline::Input<Block> _block;
+	pipeline::Value<Slices> collectSlicesByBlocks(const boost::shared_ptr<Block> block);
+	boost::shared_ptr<ConflictSets> collectConflictBySlices(const pipeline::Value<Slices> slices);
+
+	pipeline::Input<Blocks> _blocks;
 	pipeline::Input<Slices> _slices;
 	pipeline::Input<SliceStore> _store;
-	pipeline::Input<ComponentTrees> _trees;
+	pipeline::Input<ConflictSets> _conflictSets;
 };
 
 

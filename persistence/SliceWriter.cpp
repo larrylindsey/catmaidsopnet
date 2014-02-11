@@ -2,62 +2,39 @@
 
 #include <boost/shared_ptr.hpp>
 #include <sopnet/slices/Slice.h>
+#include <util/foreach.h>
 
 SliceWriter::SliceWriter()
 {
-	registerInput(_block, "block");
+	registerInput(_blocks, "blocks");
 	registerInput(_slices, "slices");
 	registerInput(_store, "store");
-	registerInput(_trees, "component trees");
+	registerInput(_conflictSets, "conflict sets");
 }
 
 void
 SliceWriter::writeSlices()
 {
-	//TODO verify slice inputs against component trees
-	// IE, each slice should have an entry in a tree.
-	int count = 0;
-	ComponentSliceMap componentSliceMap;
-	ComponentTrees::iterator ctit;
-	std::vector<boost::shared_ptr<ConnectedComponent> > components;
-	
 	updateInputs();
 	
-	foreach (boost::shared_ptr<Slice> slice, *_slices)
+	foreach (boost::shared_ptr<Block> block, *_blocks)
 	{
-		_store->associate(slice, _block);
-		componentSliceMap[*(slice->getComponent())] = slice;
-		++count;
-	}
+		pipeline::Value<Slices> blockSlices = collectSlicesByBlocks(block);
+		boost::shared_ptr<ConflictSets> slicesConflictSets = collectConflictBySlices(blockSlices);
 
-	for (ctit = _trees->begin(); ctit != _trees->end(); ++ctit)
-	{
-		boost::shared_ptr<ComponentTree::Node> rootNode = ctit->second->getRoot();
-		
-		foreach (boost::shared_ptr<ComponentTree::Node> node, rootNode->getChildren())
-		{
-			assignParents(componentSliceMap, node);
-		}
+		_store->associate(blockSlices, pipeline::Value<Block>(*block));
+		_store->storeConflict(slicesConflictSets);
 	}
-	
 }
 
-void
-SliceWriter::assignParents(ComponentSliceMap& componentSliceMap,
-						   const boost::shared_ptr<ComponentTree::Node>& node)
+boost::shared_ptr<ConflictSets>
+SliceWriter::collectConflictBySlices(const pipeline::Value<Slices> slices)
 {
-	boost::shared_ptr<Slice> parentSlice = componentSliceMap[*(node->getComponent())];
-	
-	if (parentSlice)
-	{
-		foreach (boost::shared_ptr<ComponentTree::Node> childNode, node->getChildren())
-		{
-			boost::shared_ptr<Slice> childSlice = componentSliceMap[*(childNode->getComponent())];
-			if (childSlice)
-			{
-				_store->setParent(childSlice, parentSlice);
-				assignParents(componentSliceMap, childNode);
-			}
-		}
-	}
+	//Write me!
+}
+
+pipeline::Value<Slices>
+SliceWriter::collectSlicesByBlocks(const boost::shared_ptr<Block> block)
+{
+	//Write me!
 }

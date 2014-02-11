@@ -18,19 +18,11 @@ public:
 private:
 	void updateOutputs();
 	
-	void onBoxSet(const pipeline::InputSetBase&);
-	
-	void onBlocksSet(const pipeline::InputSetBase&);
-	
 	void addUnique(const boost::shared_ptr<Slices>& inSlices,
 				   const boost::shared_ptr<Slices>& recvSlices,
 				   boost::unordered_set<Slice>& set);
-	
-	void fetchChildren(const boost::shared_ptr<Slices>& slicesIn,
-					   const boost::shared_ptr<Slices>& slicesOut);
-	
+
 	pipeline::Input<Blocks> _blocks;
-	pipeline::Input<Box<> > _box;
 	pipeline::Input<BlockManager> _blockManager;
 	pipeline::Input<SliceStore> _store;
 	pipeline::Output<Slices> _slices;

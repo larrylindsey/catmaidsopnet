@@ -167,16 +167,18 @@ LocalSliceStore::storeConflict(const pipeline::Value<ConflictSets> conflictSets)
 			{
 				eqConflict.addSlice(_idSliceMap[id]->getId());
 			}
+			else
+			{
+				LOG_ALL(localslicestorelog) << "Missing slices while storing conflict: " << id <<
+					std::endl;
+			}
+			
 		}
 		
 
-		foreach (const unsigned int id, conflict.getSlices())
+		foreach (const unsigned int id, eqConflict.getSlices())
 		{
-			if (_idSliceMap.count(id))
-			{
-				unsigned int eqId = _idSliceMap[id]->getId();
-				_conflictMap[id]->add(eqConflict);
-			}
+			_conflictMap[id]->add(eqConflict);
 		}
 
 	}

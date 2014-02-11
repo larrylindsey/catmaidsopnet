@@ -1,5 +1,6 @@
 #include "SliceWriter.h"
 
+#include <boost/unordered_set.hpp>
 #include <boost/shared_ptr.hpp>
 #include <sopnet/slices/Slice.h>
 #include <util/foreach.h>
@@ -20,21 +21,62 @@ SliceWriter::writeSlices()
 	foreach (boost::shared_ptr<Block> block, *_blocks)
 	{
 		pipeline::Value<Slices> blockSlices = collectSlicesByBlocks(block);
-		boost::shared_ptr<ConflictSets> slicesConflictSets = collectConflictBySlices(blockSlices);
+		pipeline::Value<ConflictSets> slicesConflictSets = collectConflictBySlices(blockSlices);
 
 		_store->associate(blockSlices, pipeline::Value<Block>(*block));
 		_store->storeConflict(slicesConflictSets);
 	}
 }
 
-boost::shared_ptr<ConflictSets>
-SliceWriter::collectConflictBySlices(const pipeline::Value<Slices> slices)
+bool
+SliceWriter::containsAny(ConflictSet& conflictSet, pipeline::Value<Slices>& slices)
 {
-	//Write me!
+	foreach (const boost::shared_ptr<Slice> slice, *slices)
+	{
+		if (conflictSet.getSlices().count(slice->getId()))
+		{
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+
+pipeline::Value<ConflictSets>
+SliceWriter::collectConflictBySlices(pipeline::Value<Slices> slices)
+{
+	boost::unordered_set<ConflictSet> conflictSetSet;
+	pipeline::Value<ConflictSets> conflictSets;
+	
+	foreach (ConflictSet conflictSet, *_conflictSets)
+	{
+		if (containsAny(conflictSet, slices))
+		{
+			conflictSetSet.insert(conflictSet);
+		}
+	}
+	
+	foreach (const ConflictSet conflictSet, conflictSetSet)
+	{
+		conflictSets->add(conflictSet);
+	}
+	
+	return conflictSets;
 }
 
 pipeline::Value<Slices>
 SliceWriter::collectSlicesByBlocks(const boost::shared_ptr<Block> block)
 {
-	//Write me!
+	pipeline::Value<Slices> blockSlices;
+
+	foreach (boost::shared_ptr<Slice> slice, *_slices)
+	{
+		if (block->overlaps(slice->getComponent()))
+		{
+			blockSlices->add(slice);
+		}
+	}
+
+	return blockSlices;
 }
